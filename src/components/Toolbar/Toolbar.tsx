@@ -4,16 +4,17 @@ import { useEditorStore } from '../../stores/editorStore';
 import { useHistoryStore } from '../../stores/historyStore';
 import { useHistory } from '../../hooks/useHistory';
 import { useExport } from '../../hooks/useExport';
+import Icon, { type IconName } from '../common/Icon';
 
 interface Props {
   onPickFile: (file: File) => void;
   onToggleHelp: () => void;
 }
 
-const MODES: { key: EditorMode; label: string }[] = [
-  { key: 'brush', label: '画笔擦除' },
-  { key: 'crop', label: '多边形裁剪' },
-  { key: 'retain', label: '多边形保留' },
+const MODES: { key: EditorMode; label: string; icon: IconName }[] = [
+  { key: 'brush', label: '画笔擦除', icon: 'brush' },
+  { key: 'crop', label: '多边形裁剪', icon: 'scissors' },
+  { key: 'retain', label: '多边形保留', icon: 'lasso' },
 ];
 
 export default function Toolbar({ onPickFile, onToggleHelp }: Props) {
@@ -34,29 +35,39 @@ export default function Toolbar({ onPickFile, onToggleHelp }: Props) {
     else exportRetain();
   };
 
-  const exportLabel =
-    mode === 'brush' ? '导出 PNG' : mode === 'crop' ? '全部导出 (zip)' : '导出 PNG';
+  const exportLabel = mode === 'crop' ? '全部导出' : '导出 PNG';
 
   return (
     <div className="toolbar">
       <div className="toolbar-group brand">
-        <span className="logo">✂ ClearCut</span>
+        <span className="logo">
+          <Icon name="scissors" size={18} />
+          ClearCut
+        </span>
       </div>
 
-      <div className="toolbar-group modes">
+      <span className="toolbar-divider" />
+
+      <div className="seg-control modes">
         {MODES.map((m) => (
           <button
             key={m.key}
-            className={mode === m.key ? 'active' : ''}
+            className={`seg-item${mode === m.key ? ' active' : ''}`}
             onClick={() => setMode(m.key)}
           >
+            <Icon name={m.icon} size={15} />
             {m.label}
           </button>
         ))}
       </div>
 
+      <span className="toolbar-divider" />
+
       <div className="toolbar-group">
-        <button onClick={() => fileRef.current?.click()}>加载图片</button>
+        <button onClick={() => fileRef.current?.click()}>
+          <Icon name="image-plus" />
+          加载图片
+        </button>
         <input
           ref={fileRef}
           type="file"
@@ -71,19 +82,30 @@ export default function Toolbar({ onPickFile, onToggleHelp }: Props) {
       </div>
 
       <div className="toolbar-group">
-        <button onClick={doUndo} disabled={!canUndo} title="撤销 (Ctrl+Z)">
-          ↶ 撤销
+        <button
+          className="icon-btn ghost"
+          onClick={doUndo}
+          disabled={!canUndo}
+          title="撤销 (Ctrl+Z)"
+        >
+          <Icon name="undo" />
         </button>
-        <button onClick={doRedo} disabled={!canRedo} title="重做 (Ctrl+Shift+Z)">
-          ↷ 重做
+        <button
+          className="icon-btn ghost"
+          onClick={doRedo}
+          disabled={!canRedo}
+          title="重做 (Ctrl+Shift+Z)"
+        >
+          <Icon name="redo" />
         </button>
       </div>
 
       <div className="toolbar-group right">
-        <button onClick={onToggleHelp} title="快捷键">
-          ⌨ 快捷键
+        <button className="icon-btn ghost" onClick={onToggleHelp} title="快捷键">
+          <Icon name="keyboard" />
         </button>
         <button className="primary" onClick={handleExport} disabled={!image}>
+          <Icon name="download" />
           {exportLabel}
         </button>
       </div>

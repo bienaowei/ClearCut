@@ -12,6 +12,7 @@ import ImageLayer from './ImageLayer';
 import BrushLayer from './BrushLayer';
 import PolygonLayer from './PolygonLayer';
 import PreviewOverlay from './PreviewOverlay';
+import Icon from '../common/Icon';
 
 interface Props {
   containerRef: React.RefObject<HTMLDivElement>;
@@ -28,6 +29,7 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
   const setActive = useCropStore((s) => s.setActive);
 
   const stageRef = useRef<Konva.Stage>(null);
+  const emptyFileRef = useRef<HTMLInputElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [dragOver, setDragOver] = useState(false);
 
@@ -96,9 +98,8 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
       className="canvas-area"
       style={{
         cursor: spaceDown ? 'grab' : mode === 'brush' ? 'none' : 'crosshair',
-        outline: dragOver ? '2px dashed var(--primary)' : 'none',
-        outlineOffset: -8,
       }}
+      data-dragover={dragOver ? 'true' : undefined}
       onDragOver={(e) => {
         e.preventDefault();
         setDragOver(true);
@@ -113,8 +114,39 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
     >
       {!image && (
         <div className="canvas-empty">
-          <p>拖拽图片到此处 / 点击「加载图片」/ Ctrl+V 粘贴</p>
-          <p className="muted">支持 jpg · png · webp · bmp</p>
+          <div className="empty-card">
+            <div className="empty-icon">
+              <Icon name="image-plus" size={34} />
+            </div>
+            <h2>载入一张图片开始抠图</h2>
+            <p className="muted">
+              拖拽图片到此处，或 Ctrl+V 粘贴，或点击下方按钮
+            </p>
+            <button className="primary" onClick={() => emptyFileRef.current?.click()}>
+              <Icon name="image-plus" />
+              选择图片
+            </button>
+            <p className="formats">支持 JPG · PNG · WEBP · BMP</p>
+          </div>
+          <input
+            ref={emptyFileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/bmp"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onDropFile(f);
+              e.target.value = '';
+            }}
+          />
+        </div>
+      )}
+      {dragOver && (
+        <div className="drop-overlay">
+          <div className="drop-hint">
+            <Icon name="image-plus" size={28} />
+            松开以载入图片
+          </div>
         </div>
       )}
       <Stage

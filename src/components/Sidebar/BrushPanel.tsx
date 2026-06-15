@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useEditorStore } from '../../stores/editorStore';
 import { useExport } from '../../hooks/useExport';
-import { useState } from 'react';
+import Icon from '../common/Icon';
 
 export default function BrushPanel() {
   const brushSize = useEditorStore((s) => s.brushSize);
@@ -13,11 +14,21 @@ export default function BrushPanel() {
 
   return (
     <div className="panel-content">
-      <h3>画笔擦除</h3>
-      <p className="hint">在图片上涂抹，擦除区域变为透明。</p>
+      <header className="panel-head">
+        <span className="panel-icon">
+          <Icon name="brush" size={16} />
+        </span>
+        <div>
+          <h3>画笔擦除</h3>
+          <p className="hint">涂抹区域变为透明</p>
+        </div>
+      </header>
 
-      <label className="field">
-        <span>画笔大小：{brushSize}px</span>
+      <div className="card">
+        <div className="slider-row">
+          <label>画笔大小</label>
+          <span className="value-badge">{brushSize}px</span>
+        </div>
         <input
           type="range"
           min={1}
@@ -25,10 +36,11 @@ export default function BrushPanel() {
           value={brushSize}
           onChange={(e) => setBrushSize(Number(e.target.value))}
         />
-      </label>
 
-      <label className="field">
-        <span>画笔硬度：{Math.round(brushHardness * 100)}%</span>
+        <div className="slider-row">
+          <label>画笔硬度</label>
+          <span className="value-badge">{Math.round(brushHardness * 100)}%</span>
+        </div>
         <input
           type="range"
           min={0}
@@ -37,24 +49,25 @@ export default function BrushPanel() {
           onChange={(e) => setBrushHardness(Number(e.target.value) / 100)}
         />
         <small className="muted">硬边完全擦除，软边渐变透明</small>
-      </label>
+      </div>
 
-      <hr />
-
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={autoCrop}
-          onChange={(e) => setAutoCrop(e.target.checked)}
-        />
-        <span>导出时自动裁剪到内容包围盒</span>
-      </label>
+      <div className="card">
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={autoCrop}
+            onChange={(e) => setAutoCrop(e.target.checked)}
+          />
+          <span>导出时自动裁剪到内容包围盒</span>
+        </label>
+      </div>
 
       <button
         className="primary block"
         disabled={!image}
         onClick={() => exportBrush(autoCrop)}
       >
+        <Icon name="download" />
         导出透明 PNG
       </button>
     </div>

@@ -3,11 +3,12 @@ import type { ExportSizeMode } from '../../types';
 import { useEditorStore } from '../../stores/editorStore';
 import { useCropStore } from '../../stores/cropStore';
 import { useExport } from '../../hooks/useExport';
+import Icon from '../common/Icon';
 
 const SIZE_MODES: { key: ExportSizeMode; label: string }[] = [
-  { key: 'fixed', label: '固定尺寸' },
-  { key: 'adaptive', label: '自适应统一' },
-  { key: 'original', label: '原始尺寸' },
+  { key: 'fixed', label: '固定' },
+  { key: 'adaptive', label: '自适应' },
+  { key: 'original', label: '原始' },
 ];
 
 export default function CropListPanel() {
@@ -22,9 +23,8 @@ export default function CropListPanel() {
 
   const { computeCropResults, exportCropSingle, exportCropAll } = useExport();
   const dragIndex = useRef<number | null>(null);
-  const [, force] = useState(0);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
-  // 预览结果（随多边形与配置变化重算）
   const results = useMemo(
     () => computeCropResults(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -43,53 +43,63 @@ export default function CropListPanel() {
 
   return (
     <div className="panel-content">
-      <h3>多边形裁剪</h3>
-      <p className="hint">单击加顶点，双击/点起点闭合，ESC 取消。</p>
+      <header className="panel-head">
+        <span className="panel-icon">
+          <Icon name="scissors" size={16} />
+        </span>
+        <div>
+          <h3>多边形裁剪</h3>
+          <p className="hint">单击加点 · 双击/点起点闭合 · ESC 取消</p>
+        </div>
+      </header>
 
-      <div className="field">
-        <span>导出尺寸模式</span>
-        <div className="seg">
+      <div className="card">
+        <label className="card-label">导出尺寸</label>
+        <div className="seg-control">
           {SIZE_MODES.map((m) => (
             <button
               key={m.key}
-              className={exportConfig.mode === m.key ? 'active' : ''}
+              className={`seg-item${exportConfig.mode === m.key ? ' active' : ''}`}
               onClick={() => setExportConfig({ mode: m.key })}
             >
               {m.label}
             </button>
           ))}
         </div>
-      </div>
 
-      {exportConfig.mode === 'fixed' && (
-        <div className="row">
-          <label className="field">
-            <span>宽</span>
-            <input
-              type="number"
-              min={1}
-              value={exportConfig.width}
-              onChange={(e) =>
-                setExportConfig({ width: Math.max(1, Number(e.target.value)) })
-              }
-            />
-          </label>
-          <label className="field">
-            <span>高</span>
-            <input
-              type="number"
-              min={1}
-              value={exportConfig.height}
-              onChange={(e) =>
-                setExportConfig({ height: Math.max(1, Number(e.target.value)) })
-              }
-            />
-          </label>
+        {exportConfig.mode === 'fixed' && (
+          <div className="row">
+            <label className="field">
+              <span>宽</span>
+              <input
+                type="number"
+                min={1}
+                value={exportConfig.width}
+                onChange={(e) =>
+                  setExportConfig({ width: Math.max(1, Number(e.target.value)) })
+                }
+              />
+            </label>
+            <label className="field">
+              <span>高</span>
+              <input
+                type="number"
+                min={1}
+                value={exportConfig.height}
+                onChange={(e) =>
+                  setExportConfig({
+                    height: Math.max(1, Number(e.target.value)),
+                  })
+                }
+              />
+            </label>
+          </div>
+        )}
+
+        <div className="slider-row">
+          <label>内边距</label>
+          <span className="value-badge">{exportConfig.padding}px</span>
         </div>
-      )}
-
-      <label className="field">
-        <span>内边距：{exportConfig.padding}px</span>
         <input
           type="range"
           min={0}
@@ -97,36 +107,44 @@ export default function CropListPanel() {
           value={exportConfig.padding}
           onChange={(e) => setExportConfig({ padding: Number(e.target.value) })}
         />
-      </label>
-
-      <hr />
+      </div>
 
       <div className="list-header">
-        <span>裁剪列表（{polygons.length}）</span>
+        <span>裁剪列表</span>
+        <span className="count-badge">{polygons.length}</span>
       </div>
 
       <div className="crop-list">
         {polygons.length === 0 && (
-          <p className="muted">还没有多边形，在画布上绘制一个。</p>
+          <p className="empty-list muted">还没有多边形，在画布上绘制一个</p>
         )}
         {polygons.map((poly, i) => {
           const r = resultMap.get(poly.id);
           return (
             <div
               key={poly.id}
-              className={`crop-item${poly.id === activeId ? ' active' : ''}`}
+              className={`crop-item${poly.id === activeId ? ' active' : ''}${
+                dropIndex === i ? ' drop-target' : ''
+              }`}
               draggable
               onDragStart={() => (dragIndex.current = i)}
-              onDragOver={(e) => e.preventDefault()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (dropIndex !== i) setDropIndex(i);
+              }}
+              onDragLeave={() => setDropIndex((d) => (d === i ? null : d))}
               onDrop={() => {
                 if (dragIndex.current !== null && dragIndex.current !== i) {
                   reorder(dragIndex.current, i);
-                  force((n) => n + 1);
                 }
                 dragIndex.current = null;
+                setDropIndex(null);
               }}
               onClick={() => setActive(poly.id)}
             >
+              <span className="grip">
+                <Icon name="grip" size={14} />
+              </span>
               <span className="seq">{i + 1}</span>
               <div className="thumb">
                 {r ? <img src={r.dataUrl} alt={poly.name} /> : null}
@@ -140,28 +158,28 @@ export default function CropListPanel() {
                   }
                   onClick={(e) => e.stopPropagation()}
                 />
-                <small className="muted">
-                  {r ? `${r.width}×${r.height}` : '—'}
-                </small>
+                <small className="muted">{r ? `${r.width}×${r.height}` : '—'}</small>
               </div>
               <div className="item-actions">
                 <button
+                  className="icon-btn ghost"
                   title="单独导出"
                   onClick={(e) => {
                     e.stopPropagation();
                     exportCropSingle(poly);
                   }}
                 >
-                  ⬇
+                  <Icon name="download" size={14} />
                 </button>
                 <button
+                  className="icon-btn ghost danger-hover"
                   title="删除"
                   onClick={(e) => {
                     e.stopPropagation();
                     removePolygon(poly.id);
                   }}
                 >
-                  ✕
+                  <Icon name="trash" size={14} />
                 </button>
               </div>
             </div>
@@ -174,6 +192,7 @@ export default function CropListPanel() {
         disabled={polygons.length === 0}
         onClick={() => void exportCropAll()}
       >
+        <Icon name="download" />
         全部导出 (zip)
       </button>
     </div>

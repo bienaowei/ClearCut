@@ -1,3 +1,5 @@
+import Icon from './Icon';
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -23,8 +25,12 @@ export default function ShortcutHelp({ open, onClose }: Props) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>快捷键</h3>
-          <button onClick={onClose}>✕</button>
+          <h3>
+            <Icon name="keyboard" size={16} /> 快捷键
+          </h3>
+          <button className="icon-btn ghost" onClick={onClose}>
+            <Icon name="close" />
+          </button>
         </div>
         <table className="shortcut-table">
           <tbody>

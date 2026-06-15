@@ -1,4 +1,5 @@
 import { useEditorStore } from '../../stores/editorStore';
+import Icon from './Icon';
 
 export default function StatusBar() {
   const zoom = useEditorStore((s) => s.zoom);
@@ -7,18 +8,21 @@ export default function StatusBar() {
 
   return (
     <div className="status-bar">
-      <span>缩放：{Math.round(zoom * 100)}%</span>
-      <span className="sep">·</span>
-      <span>
-        坐标：
-        {cursor
-          ? `${Math.round(cursor.x)}, ${Math.round(cursor.y)}`
-          : '—'}
+      <span className="status-item">
+        <Icon name="zoom" size={13} />
+        <span className="num">{Math.round(zoom * 100)}%</span>
       </span>
-      <span className="sep">·</span>
-      <span>
-        图片：
-        {image ? `${image.naturalWidth}×${image.naturalHeight}` : '未加载'}
+      <span className="status-item">
+        <Icon name="crosshair" size={13} />
+        <span className="num">
+          {cursor ? `${Math.round(cursor.x)}, ${Math.round(cursor.y)}` : '—'}
+        </span>
+      </span>
+      <span className="status-item">
+        <Icon name="dimensions" size={13} />
+        <span className="num">
+          {image ? `${image.naturalWidth} × ${image.naturalHeight}` : '未加载'}
+        </span>
       </span>
     </div>
   );
