@@ -1,0 +1,114 @@
+import { useCallback, useEffect } from 'react';
+import { useEditorStore } from '../stores/editorStore';
+import { useCropStore } from '../stores/cropStore';
+import { useHistoryStore } from '../stores/historyStore';
+import { brushEngine } from '../utils/brushEngine';
+
+const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp'];
+
+function loadImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('图片加载失败'));
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * 计算图片自适应视口的初始缩放与居中偏移。
+ */
+function fitImage(
+  img: HTMLImageElement,
+  viewport: { width: number; height: number },
+) {
+  const margin = 40;
+  const scale = Math.min(
+    (viewport.width - margin) / img.naturalWidth,
+    (viewport.height - margin) / img.naturalHeight,
+    1,
+  );
+  const zoom = scale > 0 ? scale : 1;
+  return {
+    zoom,
+    offset: {
+      x: (viewport.width - img.naturalWidth * zoom) / 2,
+      y: (viewport.height - img.naturalHeight * zoom) / 2,
+    },
+  };
+}
+
+export function useImageLoader(
+  viewportRef: React.RefObject<HTMLDivElement>,
+) {
+  const setImage = useEditorStore((s) => s.setImage);
+  const setZoom = useEditorStore((s) => s.setZoom);
+  const setOffset = useEditorStore((s) => s.setOffset);
+  const clearCrop = useCropStore((s) => s.clear);
+  const resetHistory = useHistoryStore((s) => s.reset);
+
+  const applyImage = useCallback(
+    async (blob: Blob, name?: string) => {
+      const img = await loadImageFromBlob(blob);
+      setImage(img, name);
+      brushEngine.init(img);
+      clearCrop();
+      resetHistory({ kind: 'brush', mask: null });
+
+      const vp = viewportRef.current;
+      if (vp) {
+        const { zoom, offset } = fitImage(img, {
+          width: vp.clientWidth,
+          height: vp.clientHeight,
+        });
+        setZoom(zoom);
+        setOffset(offset);
+      }
+    },
+    [setImage, setZoom, setOffset, clearCrop, resetHistory, viewportRef],
+  );
+
+  const loadFromFile = useCallback(
+    (file: File) => {
+      if (!ACCEPTED.includes(file.type)) {
+        alert('不支持的图片格式，请使用 jpg / png / webp / bmp');
+        return;
+      }
+      void applyImage(file, stripExt(file.name));
+    },
+    [applyImage],
+  );
+
+  // 粘贴剪贴板图片
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            void applyImage(file, 'pasted');
+            e.preventDefault();
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [applyImage]);
+
+  return { loadFromFile };
+}
+
+function stripExt(name: string): string {
+  return name.replace(/\.[^.]+$/, '');
+}
