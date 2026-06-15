@@ -8,6 +8,7 @@ import { edgeMidpoints } from '../../utils/polygonMath';
 interface Props {
   draft: Point[];
   hover: Point | null;
+  isLasso: boolean;
   commitPolygons: () => void;
 }
 
@@ -18,7 +19,12 @@ function flatten(points: Point[]): number[] {
 }
 
 /** 多边形绘制 / 选择 / 顶点编辑层 */
-export default function PolygonLayer({ draft, hover, commitPolygons }: Props) {
+export default function PolygonLayer({
+  draft,
+  hover,
+  isLasso,
+  commitPolygons,
+}: Props) {
   const zoom = useEditorStore((s) => s.zoom);
   const polygons = useCropStore((s) => s.polygons);
   const activeId = useCropStore((s) => s.activePolygonId);
@@ -79,8 +85,22 @@ export default function PolygonLayer({ draft, hover, commitPolygons }: Props) {
           />
         ))}
 
+      {/* 正在绘制的套索（自由手绘）草稿 */}
+      {draft.length > 0 && isLasso && (
+        <Line
+          points={flatten(draft)}
+          closed
+          fill="#e8453c22"
+          stroke="#e8453c"
+          strokeWidth={1.5 / zoom}
+          lineCap="round"
+          lineJoin="round"
+          tension={0.2}
+        />
+      )}
+
       {/* 正在绘制的草稿多边形 */}
-      {draft.length > 0 && (
+      {draft.length > 0 && !isLasso && (
         <>
           <Line
             points={[

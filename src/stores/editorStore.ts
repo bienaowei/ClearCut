@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type {
+  DrawMethod,
   EditorMode,
   ExportConfig,
   Point,
@@ -8,6 +9,8 @@ import type {
 
 interface EditorState {
   mode: EditorMode;
+  /** crop / retain 模式下的绘制方式：逐点多边形 or 自由套索 */
+  drawMethod: DrawMethod;
   image: HTMLImageElement | null;
   imageName: string;
   /** 画布缩放比例（显示坐标 = 原图坐标 * zoom） */
@@ -25,6 +28,7 @@ interface EditorState {
   retainConfig: RetainConfig;
 
   setMode: (mode: EditorMode) => void;
+  setDrawMethod: (method: DrawMethod) => void;
   setImage: (image: HTMLImageElement | null, name?: string) => void;
   setZoom: (zoom: number) => void;
   setOffset: (offset: Point) => void;
@@ -37,6 +41,7 @@ interface EditorState {
 
 export const useEditorStore = create<EditorState>((set) => ({
   mode: 'brush',
+  drawMethod: 'polygon',
   image: null,
   imageName: 'image',
   zoom: 1,
@@ -50,6 +55,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   retainConfig: { mode: 'origin', width: 256, height: 256, padding: 0 },
 
   setMode: (mode) => set({ mode }),
+  setDrawMethod: (drawMethod) => set({ drawMethod }),
   setImage: (image, name) =>
     set((s) => ({ image, imageName: name ?? s.imageName })),
   setZoom: (zoom) => set({ zoom }),

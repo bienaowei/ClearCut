@@ -3,6 +3,7 @@ import { useEditorStore } from '../stores/editorStore';
 import { useCropStore } from '../stores/cropStore';
 import { useHistoryStore } from '../stores/historyStore';
 import { brushEngine } from '../utils/brushEngine';
+import { useAlert } from '../components/common/ConfirmDialog';
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp'];
 
@@ -53,6 +54,7 @@ export function useImageLoader(
   const setOffset = useEditorStore((s) => s.setOffset);
   const clearCrop = useCropStore((s) => s.clear);
   const resetHistory = useHistoryStore((s) => s.reset);
+  const alert = useAlert();
 
   const applyImage = useCallback(
     async (blob: Blob, name?: string) => {
@@ -78,13 +80,26 @@ export function useImageLoader(
   const loadFromFile = useCallback(
     (file: File) => {
       if (!ACCEPTED.includes(file.type)) {
-        alert('不支持的图片格式，请使用 jpg / png / webp / bmp');
+        void alert({
+          title: '无法加载图片',
+          message: '不支持的图片格式，请使用 JPG / PNG / WEBP / BMP',
+        });
         return;
       }
       void applyImage(file, stripExt(file.name));
     },
-    [applyImage],
+    [applyImage, alert],
   );
+
+  /** 清除当前图片，恢复到空白初始状态 */
+  const clearImage = useCallback(() => {
+    setImage(null, 'image');
+    brushEngine.dispose();
+    clearCrop();
+    resetHistory();
+    setZoom(1);
+    setOffset({ x: 0, y: 0 });
+  }, [setImage, clearCrop, resetHistory, setZoom, setOffset]);
 
   // 粘贴剪贴板图片
   useEffect(() => {
@@ -106,7 +121,7 @@ export function useImageLoader(
     return () => window.removeEventListener('paste', onPaste);
   }, [applyImage]);
 
-  return { loadFromFile };
+  return { loadFromFile, clearImage };
 }
 
 function stripExt(name: string): string {

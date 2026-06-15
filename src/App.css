@@ -84,7 +84,10 @@
 .seg-control.modes .seg-item {
   min-width: 104px;
 }
-.seg-control:not(.vertical):not(.modes) .seg-item {
+.seg-control.methods .seg-item {
+  min-width: 76px;
+}
+.seg-control:not(.vertical):not(.modes):not(.methods) .seg-item {
   flex: 1;
 }
 
@@ -511,6 +514,53 @@ button.block {
     transform: scale(1) translateY(0);
   }
 }
+/* ---------- 确认弹窗 ---------- */
+.confirm-modal {
+  width: 360px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.confirm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--accent);
+  margin-bottom: var(--sp-3);
+}
+.confirm-icon.danger {
+  background: rgba(192, 57, 43, 0.16);
+  color: #ff6d63;
+}
+.confirm-icon.warning {
+  background: rgba(240, 168, 104, 0.16);
+  color: var(--accent);
+}
+.confirm-title {
+  font-size: var(--fs-md);
+  margin-bottom: var(--sp-2);
+}
+.confirm-message {
+  font-size: var(--fs-base);
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: var(--sp-5);
+}
+.confirm-actions {
+  display: flex;
+  gap: var(--sp-3);
+  width: 100%;
+}
+.confirm-actions button {
+  flex: 1;
+  height: 38px;
+}
+
 .modal-header {
   display: flex;
   align-items: center;

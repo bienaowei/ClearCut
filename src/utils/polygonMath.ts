@@ -77,6 +77,58 @@ export function nearestEdgeIndex(pt: Point, points: Point[]): number {
   return best;
 }
 
+/**
+ * Douglas-Peucker 路径简化：将套索采集的密集点抽稀为可编辑的顶点序列。
+ * tolerance 为最大允许偏差（原图像素），越大顶点越少。
+ */
+export function simplifyPath(points: Point[], tolerance: number): Point[] {
+  if (points.length <= 2) return points.slice();
+  const sqTol = tolerance * tolerance;
+
+  const simplify = (start: number, end: number, out: Point[]) => {
+    let maxSq = 0;
+    let index = -1;
+    const a = points[start];
+    const b = points[end];
+    for (let i = start + 1; i < end; i++) {
+      const sq = sqSegmentDistance(points[i], a, b);
+      if (sq > maxSq) {
+        maxSq = sq;
+        index = i;
+      }
+    }
+    if (maxSq > sqTol && index !== -1) {
+      simplify(start, index, out);
+      out.push(points[index]);
+      simplify(index, end, out);
+    }
+  };
+
+  const result: Point[] = [points[0]];
+  simplify(0, points.length - 1, result);
+  result.push(points[points.length - 1]);
+  return result;
+}
+
+/** 点到线段的平方距离（避免开方，供简化算法使用） */
+function sqSegmentDistance(p: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) {
+    const ddx = p.x - a.x;
+    const ddy = p.y - a.y;
+    return ddx * ddx + ddy * ddy;
+  }
+  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  const cx = a.x + t * dx;
+  const cy = a.y + t * dy;
+  const ddx = p.x - cx;
+  const ddy = p.y - cy;
+  return ddx * ddx + ddy * ddy;
+}
+
 function pointToSegmentDistance(p: Point, a: Point, b: Point): number {
   const dx = b.x - a.x;
   const dy = b.y - a.y;

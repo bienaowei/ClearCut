@@ -29,6 +29,9 @@ export interface CropResult {
 
 export type EditorMode = 'brush' | 'crop' | 'retain';
 
+/** 多边形 / 套索：crop 与 retain 模式下的绘制方式 */
+export type DrawMethod = 'polygon' | 'lasso';
+
 /** 模式三反向裁剪的导出方式 */
 export type RetainExportMode = 'origin' | 'bbox' | 'fixed';
 

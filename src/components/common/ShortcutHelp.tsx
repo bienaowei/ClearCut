@@ -13,6 +13,7 @@ const SHORTCUTS: { keys: string; desc: string }[] = [
   { keys: '空格 + 拖拽', desc: '平移画布' },
   { keys: '单击', desc: '添加多边形顶点' },
   { keys: '双击 / 点起点', desc: '闭合多边形' },
+  { keys: '套索：按住拖拽', desc: '自由勾勒轮廓，松开闭合' },
   { keys: '双击边中点', desc: '插入新顶点' },
   { keys: '右键顶点', desc: '删除该顶点（≥3）' },
   { keys: 'Esc', desc: '取消当前绘制' },

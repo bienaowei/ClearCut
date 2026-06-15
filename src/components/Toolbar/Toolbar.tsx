@@ -1,25 +1,38 @@
 import { useRef } from 'react';
-import type { EditorMode } from '../../types';
+import type { DrawMethod, EditorMode } from '../../types';
 import { useEditorStore } from '../../stores/editorStore';
 import { useHistoryStore } from '../../stores/historyStore';
 import { useHistory } from '../../hooks/useHistory';
 import { useExport } from '../../hooks/useExport';
+import { useConfirm } from '../common/ConfirmDialog';
 import Icon, { type IconName } from '../common/Icon';
 
 interface Props {
   onPickFile: (file: File) => void;
+  onClearImage: () => void;
   onToggleHelp: () => void;
 }
 
 const MODES: { key: EditorMode; label: string; icon: IconName }[] = [
   { key: 'brush', label: '画笔擦除', icon: 'brush' },
-  { key: 'crop', label: '多边形裁剪', icon: 'scissors' },
-  { key: 'retain', label: '多边形保留', icon: 'lasso' },
+  { key: 'crop', label: '裁剪', icon: 'scissors' },
+  { key: 'retain', label: '保留', icon: 'dimensions' },
 ];
 
-export default function Toolbar({ onPickFile, onToggleHelp }: Props) {
+const DRAW_METHODS: { key: DrawMethod; label: string; icon: IconName }[] = [
+  { key: 'polygon', label: '多边形', icon: 'polygon' },
+  { key: 'lasso', label: '套索', icon: 'lasso' },
+];
+
+export default function Toolbar({
+  onPickFile,
+  onClearImage,
+  onToggleHelp,
+}: Props) {
   const mode = useEditorStore((s) => s.mode);
   const setMode = useEditorStore((s) => s.setMode);
+  const drawMethod = useEditorStore((s) => s.drawMethod);
+  const setDrawMethod = useEditorStore((s) => s.setDrawMethod);
   const image = useEditorStore((s) => s.image);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -28,6 +41,18 @@ export default function Toolbar({ onPickFile, onToggleHelp }: Props) {
   const canRedo = useHistoryStore((s) => s.canRedo());
 
   const { exportBrush, exportCropAll, exportRetain } = useExport();
+  const confirm = useConfirm();
+
+  const handleClearImage = async () => {
+    const ok = await confirm({
+      title: '清除当前图片',
+      message: '未导出的擦除 / 裁剪将一并丢失，确定要清除吗？',
+      confirmText: '清除',
+      cancelText: '取消',
+      danger: true,
+    });
+    if (ok) onClearImage();
+  };
 
   const handleExport = () => {
     if (mode === 'brush') exportBrush(false);
@@ -61,6 +86,24 @@ export default function Toolbar({ onPickFile, onToggleHelp }: Props) {
         ))}
       </div>
 
+      {mode !== 'brush' && (
+        <>
+          <span className="toolbar-divider" />
+          <div className="seg-control methods" title="绘制方式">
+            {DRAW_METHODS.map((m) => (
+              <button
+                key={m.key}
+                className={`seg-item${drawMethod === m.key ? ' active' : ''}`}
+                onClick={() => setDrawMethod(m.key)}
+              >
+                <Icon name={m.icon} size={15} />
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       <span className="toolbar-divider" />
 
       <div className="toolbar-group">
@@ -79,6 +122,14 @@ export default function Toolbar({ onPickFile, onToggleHelp }: Props) {
             e.target.value = '';
           }}
         />
+        <button
+          className="icon-btn ghost"
+          onClick={handleClearImage}
+          disabled={!image}
+          title="清除当前图片"
+        >
+          <Icon name="trash" />
+        </button>
       </div>
 
       <div className="toolbar-group">

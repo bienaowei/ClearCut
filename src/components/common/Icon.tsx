@@ -6,6 +6,8 @@ export type IconName =
   | 'brush'
   | 'scissors'
   | 'lasso'
+  | 'polygon'
+  | 'alert'
   | 'undo'
   | 'redo'
   | 'image-plus'
@@ -47,6 +49,23 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M3.34 14A6.8 6.8 0 0 1 2 10c0-4.42 4.48-8 10-8s10 3.58 10 8a7.19 7.19 0 0 1-.33 2" />
       <path d="M5 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
       <path d="M14.33 22h-.09a.35.35 0 0 1-.24-.32v-10a.34.34 0 0 1 .33-.34c.08 0 .15.03.21.08l7.34 6a.33.33 0 0 1-.21.59h-4.49l-2.27 3.91a.35.35 0 0 1-.28.18z" />
+    </>
+  ),
+  polygon: (
+    <>
+      <polygon points="12 3 21 9 18 20 6 20 3 9" />
+      <circle cx="12" cy="3" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="21" cy="9" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="20" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="6" cy="20" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="3" cy="9" r="1.6" fill="currentColor" stroke="none" />
+    </>
+  ),
+  alert: (
+    <>
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
     </>
   ),
   undo: (

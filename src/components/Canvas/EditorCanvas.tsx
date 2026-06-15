@@ -21,6 +21,7 @@ interface Props {
 
 export default function EditorCanvas({ containerRef, onDropFile }: Props) {
   const mode = useEditorStore((s) => s.mode);
+  const drawMethod = useEditorStore((s) => s.drawMethod);
   const image = useEditorStore((s) => s.image);
   const zoom = useEditorStore((s) => s.zoom);
   const offset = useEditorStore((s) => s.offset);
@@ -63,6 +64,12 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
     if (!pt) return;
     if (mode === 'brush') {
       brush.begin(pt);
+    } else if (drawMethod === 'lasso') {
+      // 套索：仅在空白处按下开始自由绘制；点中多边形交给其自身处理（选择/拖拽）
+      if (e.target === e.target.getStage()) {
+        setActive(null);
+        polygon.lassoBegin(pt);
+      }
     } else {
       // 点击空白（stage 自身）→ 开始/继续绘制；点中多边形由其自身处理
       if (e.target === e.target.getStage()) {
@@ -79,6 +86,8 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
     setCursor(pt);
     if (mode === 'brush') {
       brush.move(pt);
+    } else if (drawMethod === 'lasso') {
+      polygon.lassoMove(pt);
     } else {
       polygon.handleMouseMove(pt);
     }
@@ -86,10 +95,11 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
 
   const onPointerUp = () => {
     if (mode === 'brush') brush.end();
+    else if (drawMethod === 'lasso') polygon.lassoEnd();
   };
 
   const onDblClick = () => {
-    if (mode !== 'brush') polygon.handleDblClick();
+    if (mode !== 'brush' && drawMethod === 'polygon') polygon.handleDblClick();
   };
 
   return (
@@ -97,7 +107,13 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
       ref={containerRef}
       className="canvas-area"
       style={{
-        cursor: spaceDown ? 'grab' : mode === 'brush' ? 'none' : 'crosshair',
+        cursor: !image
+          ? 'default'
+          : spaceDown
+          ? 'grab'
+          : mode === 'brush'
+          ? 'none'
+          : 'crosshair',
       }}
       data-dragover={dragOver ? 'true' : undefined}
       onDragOver={(e) => {
@@ -182,6 +198,7 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
             <PolygonLayer
               draft={polygon.draft}
               hover={polygon.hover}
+              isLasso={polygon.isLasso}
               commitPolygons={commitPolygons}
             />
           </>

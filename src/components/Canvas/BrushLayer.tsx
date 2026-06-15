@@ -36,15 +36,37 @@ export default function BrushLayer() {
       </Layer>
       <Layer listening={false}>
         {cursor && (
-          <Circle
-            x={cursor.x}
-            y={cursor.y}
-            radius={brushSize / 2}
-            stroke="#f0a868"
-            strokeWidth={1}
-            strokeScaleEnabled={false}
-            dash={[4, 4]}
-          />
+          <>
+            {/* 深色衬底，保证浅色背景上也能看清 */}
+            <Circle
+              x={cursor.x}
+              y={cursor.y}
+              radius={brushSize / 2}
+              stroke="rgba(0,0,0,0.55)"
+              strokeWidth={3}
+              strokeScaleEnabled={false}
+            />
+            {/* 亮色虚线圈 */}
+            <Circle
+              x={cursor.x}
+              y={cursor.y}
+              radius={brushSize / 2}
+              stroke="#ff7a45"
+              strokeWidth={1.5}
+              strokeScaleEnabled={false}
+              dash={[4, 4]}
+            />
+            {/* 中心点 */}
+            <Circle
+              x={cursor.x}
+              y={cursor.y}
+              radius={1.5}
+              fill="#ff7a45"
+              stroke="rgba(0,0,0,0.55)"
+              strokeWidth={1}
+              strokeScaleEnabled={false}
+            />
+          </>
         )}
       </Layer>
     </>

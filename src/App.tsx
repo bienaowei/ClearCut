@@ -9,17 +9,27 @@ import CropListPanel from './components/Sidebar/CropListPanel';
 import RetainPanel from './components/Sidebar/RetainPanel';
 import StatusBar from './components/common/StatusBar';
 import ShortcutHelp from './components/common/ShortcutHelp';
+import { ConfirmProvider } from './components/common/ConfirmDialog';
 
 export default function App() {
+  return (
+    <ConfirmProvider>
+      <AppInner />
+    </ConfirmProvider>
+  );
+}
+
+function AppInner() {
   const mode = useEditorStore((s) => s.mode);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const { loadFromFile } = useImageLoader(canvasContainerRef);
+  const { loadFromFile, clearImage } = useImageLoader(canvasContainerRef);
   const [helpOpen, setHelpOpen] = useState(false);
 
   return (
     <div className="app">
       <Toolbar
         onPickFile={loadFromFile}
+        onClearImage={clearImage}
         onToggleHelp={() => setHelpOpen((v) => !v)}
       />
       <div className="workspace">
