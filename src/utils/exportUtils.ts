@@ -1,10 +1,30 @@
-import { saveAs } from 'file-saver';
 import type { CropResult } from '../types';
 import type { ZipFileEntry, ZipRequest } from '../workers/zipWorker';
 
+/**
+ * 通过隐藏的 <a download> 触发下载。
+ * 不走 file-saver 的兜底逻辑（在 macOS WebView / 部分 Safari 下会
+ * 用 location.href 跳转页面，导致 React 应用重挂载、已加载的图片被清空）。
+ */
+function triggerDownload(data: Blob | string, filename: string): void {
+  const isBlob = typeof data !== 'string';
+  const url = isBlob ? URL.createObjectURL(data) : data;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  if (isBlob) {
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+}
+
 /** 触发单张 PNG 下载 */
 export function downloadDataUrl(dataUrl: string, filename: string): void {
-  saveAs(dataUrl, filename);
+  triggerDownload(dataUrl, filename);
 }
 
 /** 清洗文件名中的非法字符 */
@@ -63,7 +83,7 @@ export async function exportResultsAsZip(
       e: MessageEvent<{ ok: boolean; blob?: Blob; error?: string }>,
     ) => {
       if (e.data.ok && e.data.blob) {
-        saveAs(e.data.blob, zipName);
+        triggerDownload(e.data.blob, zipName);
         resolve();
       } else {
         reject(new Error(e.data.error ?? '打包失败'));

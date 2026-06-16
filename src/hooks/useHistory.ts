@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useHistoryStore, type HistorySnapshot } from '../stores/historyStore';
 import { useCropStore } from '../stores/cropStore';
 import { brushEngine } from '../utils/brushEngine';
@@ -44,32 +44,6 @@ export function useHistory() {
     const snap = redo();
     if (snap) applySnapshot(snap);
   }, [redo]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target;
-      if (
-        target instanceof HTMLElement &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-      const ctrl = e.ctrlKey || e.metaKey;
-      if (!ctrl) return;
-      if (e.key.toLowerCase() === 'z') {
-        e.preventDefault();
-        if (e.shiftKey) doRedo();
-        else doUndo();
-      } else if (e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        doRedo();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doUndo, doRedo]);
 
   return { commitBrush, commitPolygons, doUndo, doRedo };
 }

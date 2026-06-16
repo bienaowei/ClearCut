@@ -1,4 +1,4 @@
-import { Layer, Line, Circle } from 'react-konva';
+import { Layer, Line, Circle, Group } from 'react-konva';
 import type Konva from 'konva';
 import type { Point } from '../../types';
 import { useEditorStore } from '../../stores/editorStore';
@@ -38,54 +38,68 @@ export default function PolygonLayer({
 
   return (
     <Layer>
-      {/* 已完成的多边形 */}
+      {/* 未激活的多边形：仅显示，点击选中 */}
       {polygons.map((poly) => {
-        const isActive = poly.id === activeId;
+        if (poly.id === activeId) return null;
         return (
           <Line
             key={poly.id}
             points={flatten(poly.points)}
             closed
-            fill={poly.color + (isActive ? '55' : '33')}
+            fill={poly.color + '33'}
             stroke={poly.color}
-            strokeWidth={(isActive ? 2 : 1.5) / zoom}
-            draggable={isActive}
+            strokeWidth={1.5 / zoom}
             onMouseDown={(e) => {
               e.cancelBubble = true;
               setActive(poly.id);
             }}
-            onDragMove={(e) => {
-              const node = e.target as Konva.Line;
+          />
+        );
+      })}
+
+      {/* 激活的多边形：线条 + 手柄整体放进可拖动的 Group，
+          拖动时由 Konva 原生平移（不触发 React 重渲染，因此不抖动），
+          只在拖动结束时把累计位移一次性烘焙进顶点。 */}
+      {polygons
+        .filter((p) => p.id === activeId)
+        .map((poly) => (
+          <Group
+            key={poly.id}
+            draggable
+            onDragEnd={(e) => {
+              const node = e.target as Konva.Group;
               const dx = node.x();
               const dy = node.y();
               node.position({ x: 0, y: 0 });
+              if (dx === 0 && dy === 0) return;
               updatePolygon(poly.id, {
                 points: poly.points.map((p) => ({
                   x: p.x + dx,
                   y: p.y + dy,
                 })),
               });
+              commitPolygons();
             }}
-            onDragEnd={() => commitPolygons()}
-          />
-        );
-      })}
-
-      {/* 当前激活多边形的顶点 / 边中点手柄 */}
-      {polygons
-        .filter((p) => p.id === activeId)
-        .map((poly) => (
-          <VertexHandles
-            key={`h_${poly.id}`}
-            polygonId={poly.id}
-            points={poly.points}
-            color={poly.color}
-            handleR={handleR}
-            midR={midR}
-            colors={colors}
-            updatePolygon={updatePolygon}
-            commitPolygons={commitPolygons}
-          />
+          >
+            {/* 注意：此处不要 cancelBubble，否则事件无法冒泡到 Group，导致整体拖不动 */}
+            <Line
+              points={flatten(poly.points)}
+              closed
+              fill={poly.color + '55'}
+              stroke={poly.color}
+              strokeWidth={2 / zoom}
+            />
+            <VertexHandles
+              polygonId={poly.id}
+              points={poly.points}
+              color={poly.color}
+              handleR={handleR}
+              midR={midR}
+              colors={colors}
+              updatePolygon={updatePolygon}
+              commitPolygons={commitPolygons}
+            />
+          </Group>
         ))}
 
       {/* 正在绘制的套索（自由手绘）草稿 */}
