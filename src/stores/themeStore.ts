@@ -15,9 +15,13 @@ function readInitialTheme(): Theme {
   return 'dark';
 }
 
-/** 将主题写入 <html data-theme> 并持久化 */
+/** 将主题写入 <html data-theme>、同步 favicon 并持久化 */
 function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
+  const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if (favicon) {
+    favicon.href = theme === 'light' ? '/favicon-light.svg' : '/favicon-dark.svg';
+  }
   try {
     localStorage.setItem(STORAGE_KEY, theme);
   } catch {
