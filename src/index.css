@@ -3,8 +3,10 @@
   --bg: #2a1f1f;
   --panel: #352424;
   --border: #4a3030;
+  --border-hover: #5a3a39;
   --primary: #e8453c;
   --primary-hover: #ff5c52;
+  --primary-light: #ff6d63;
   --accent: #f0a868;
   --danger: #c0392b;
   --success: #d4885a;
@@ -21,6 +23,17 @@
   /* ---------- 渐变 ---------- */
   --primary-grad: linear-gradient(180deg, #ff5c52 0%, #e8453c 100%);
   --primary-grad-hover: linear-gradient(180deg, #ff6d63 0%, #f24a40 100%);
+  --danger-grad: linear-gradient(180deg, #d8453a 0%, #c0392b 100%);
+  --danger-grad-hover: linear-gradient(180deg, #e2554a 0%, #cf4133 100%);
+
+  /* ---------- 半透明叠加（随主题变化） ---------- */
+  --panel-translucent: rgba(53, 36, 36, 0.7);
+  --primary-soft: rgba(232, 69, 60, 0.12);
+  --primary-soft-border: rgba(232, 69, 60, 0.22);
+  --primary-glow-soft: rgba(232, 69, 60, 0.25);
+  --accent-soft: rgba(240, 168, 104, 0.12);
+  --accent-soft-border: rgba(240, 168, 104, 0.22);
+  --danger-soft: rgba(192, 57, 43, 0.16);
 
   /* ---------- 圆角 ---------- */
   --r-sm: 6px;
@@ -62,6 +75,62 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ===================================================== */
+/* 冷色调（白蓝）亮色主题 —— data-theme="light" 时覆盖    */
+/* ===================================================== */
+:root[data-theme='light'] {
+  /* 主体 */
+  --bg: #f4f7fb;
+  --panel: #ffffff;
+  --border: #d6e2f0;
+  --border-hover: #a9c2de;
+
+  /* 主色（蓝） */
+  --primary: #2e7cf6;
+  --primary-hover: #4a90ff;
+  --primary-light: #2e7cf6;
+  --accent: #2e7cf6;
+  --danger: #e04b4b;
+  --success: #2e7cf6;
+
+  /* 文字 */
+  --text: #1a2a3a;
+  --text-muted: #6b8299;
+
+  /* 棋盘格（透明背景指示） */
+  --checker-a: #f4f7fb;
+  --checker-b: #e8eef6;
+
+  /* 表面分层 */
+  --surface-1: #ffffff;
+  --surface-2: #eef3fa;
+  --surface-hover: #e2ebf6;
+
+  /* 渐变 */
+  --primary-grad: linear-gradient(180deg, #4a90ff 0%, #2e7cf6 100%);
+  --primary-grad-hover: linear-gradient(180deg, #5ba0ff 0%, #2670e6 100%);
+  --danger-grad: linear-gradient(180deg, #ec5e5e 0%, #e04b4b 100%);
+  --danger-grad-hover: linear-gradient(180deg, #f07070 0%, #d63a3a 100%);
+
+  /* 半透明叠加 */
+  --panel-translucent: rgba(255, 255, 255, 0.82);
+  --primary-soft: rgba(46, 124, 246, 0.1);
+  --primary-soft-border: rgba(46, 124, 246, 0.24);
+  --primary-glow-soft: rgba(46, 124, 246, 0.18);
+  --accent-soft: rgba(46, 124, 246, 0.1);
+  --accent-soft-border: rgba(46, 124, 246, 0.2);
+  --danger-soft: rgba(224, 75, 75, 0.12);
+
+  /* 阴影（白底用柔和蓝灰阴影） */
+  --shadow-1: 0 1px 2px rgba(30, 60, 100, 0.08);
+  --shadow-2: 0 4px 14px rgba(30, 60, 100, 0.12);
+  --shadow-pop: 0 16px 48px rgba(30, 60, 100, 0.18);
+  --glow-primary: 0 0 0 3px rgba(46, 124, 246, 0.25);
+
+  color: var(--text);
+  background: var(--bg);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -99,7 +168,7 @@ button {
 }
 button:hover:not(:disabled) {
   background: var(--surface-hover);
-  border-color: #5a3a39;
+  border-color: var(--border-hover);
 }
 button:active:not(:disabled) {
   transform: translateY(1px);
@@ -141,14 +210,14 @@ button.ghost:hover:not(:disabled) {
 }
 
 button.danger {
-  background: linear-gradient(180deg, #d8453a 0%, var(--danger) 100%);
+  background: var(--danger-grad);
   border-color: transparent;
   color: #fff;
   font-weight: 600;
   box-shadow: var(--shadow-1);
 }
 button.danger:hover:not(:disabled) {
-  background: linear-gradient(180deg, #e2554a 0%, #cf4133 100%);
+  background: var(--danger-grad-hover);
   box-shadow: var(--shadow-2);
 }
 
@@ -174,7 +243,7 @@ input[type='text'] {
 }
 input[type='number']:hover,
 input[type='text']:hover {
-  border-color: #5a3a39;
+  border-color: var(--border-hover);
 }
 input:focus {
   outline: none;
@@ -204,7 +273,7 @@ input[type='range']::-webkit-slider-thumb {
   margin-top: -5px;
   border-radius: 50%;
   background: var(--accent);
-  border: 2px solid #2a1f1f;
+  border: 2px solid var(--bg);
   box-shadow: var(--shadow-1);
   transition: transform var(--dur) var(--ease),
     box-shadow var(--dur) var(--ease);
@@ -225,7 +294,7 @@ input[type='range']::-moz-range-thumb {
   height: 14px;
   border-radius: 50%;
   background: var(--accent);
-  border: 2px solid #2a1f1f;
+  border: 2px solid var(--bg);
   box-shadow: var(--shadow-1);
 }
 

@@ -3,12 +3,14 @@ import { Layer, Image as KonvaImage, Circle } from 'react-konva';
 import type Konva from 'konva';
 import { useEditorStore } from '../../stores/editorStore';
 import { brushEngine } from '../../utils/brushEngine';
+import { useThemeColors } from '../../hooks/useThemeColors';
 
 /** 画笔擦除显示层：实时显示擦除结果 + 跟随光标的画笔预览圈 */
 export default function BrushLayer() {
   const image = useEditorStore((s) => s.image);
   const cursor = useEditorStore((s) => s.cursor);
   const brushSize = useEditorStore((s) => s.brushSize);
+  const colors = useThemeColors();
   const imageLayerRef = useRef<Konva.Layer>(null);
   const konvaImageRef = useRef<Konva.Image>(null);
 
@@ -51,7 +53,7 @@ export default function BrushLayer() {
               x={cursor.x}
               y={cursor.y}
               radius={brushSize / 2}
-              stroke="#ff7a45"
+              stroke={colors.brush}
               strokeWidth={1.5}
               strokeScaleEnabled={false}
               dash={[4, 4]}
@@ -61,7 +63,7 @@ export default function BrushLayer() {
               x={cursor.x}
               y={cursor.y}
               radius={1.5}
-              fill="#ff7a45"
+              fill={colors.brush}
               stroke="rgba(0,0,0,0.55)"
               strokeWidth={1}
               strokeScaleEnabled={false}

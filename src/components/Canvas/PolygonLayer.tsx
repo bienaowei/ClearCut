@@ -4,6 +4,7 @@ import type { Point } from '../../types';
 import { useEditorStore } from '../../stores/editorStore';
 import { useCropStore } from '../../stores/cropStore';
 import { edgeMidpoints } from '../../utils/polygonMath';
+import { useThemeColors, type CanvasColors } from '../../hooks/useThemeColors';
 
 interface Props {
   draft: Point[];
@@ -30,6 +31,7 @@ export default function PolygonLayer({
   const activeId = useCropStore((s) => s.activePolygonId);
   const setActive = useCropStore((s) => s.setActive);
   const updatePolygon = useCropStore((s) => s.updatePolygon);
+  const colors = useThemeColors();
 
   const handleR = 5 / zoom;
   const midR = 3.5 / zoom;
@@ -80,6 +82,7 @@ export default function PolygonLayer({
             color={poly.color}
             handleR={handleR}
             midR={midR}
+            colors={colors}
             updatePolygon={updatePolygon}
             commitPolygons={commitPolygons}
           />
@@ -90,8 +93,8 @@ export default function PolygonLayer({
         <Line
           points={flatten(draft)}
           closed
-          fill="#e8453c22"
-          stroke="#e8453c"
+          fill={colors.draftFill}
+          stroke={colors.draftStroke}
           strokeWidth={1.5 / zoom}
           lineCap="round"
           lineJoin="round"
@@ -107,7 +110,7 @@ export default function PolygonLayer({
               ...flatten(draft),
               ...(hover ? [hover.x, hover.y] : []),
             ]}
-            stroke="#e8453c"
+            stroke={colors.draftStroke}
             strokeWidth={1.5 / zoom}
             dash={[6 / zoom, 4 / zoom]}
           />
@@ -117,8 +120,8 @@ export default function PolygonLayer({
               x={p.x}
               y={p.y}
               radius={(i === 0 ? 6 : 4) / zoom}
-              fill={i === 0 ? '#f0a868' : '#e8453c'}
-              stroke="#2a1f1f"
+              fill={i === 0 ? colors.accent : colors.draftStroke}
+              stroke={colors.vertexStroke}
               strokeWidth={1 / zoom}
             />
           ))}
@@ -134,6 +137,7 @@ interface VHProps {
   color: string;
   handleR: number;
   midR: number;
+  colors: CanvasColors;
   updatePolygon: (id: string, patch: { points: Point[] }) => void;
   commitPolygons: () => void;
 }
@@ -143,6 +147,7 @@ function VertexHandles({
   points,
   handleR,
   midR,
+  colors,
   updatePolygon,
   commitPolygons,
 }: VHProps) {
@@ -157,7 +162,7 @@ function VertexHandles({
           x={m.x}
           y={m.y}
           radius={midR}
-          fill="#f0a868"
+          fill={colors.accent}
           opacity={0.7}
           onDblClick={(e) => {
             e.cancelBubble = true;
@@ -176,8 +181,8 @@ function VertexHandles({
           x={p.x}
           y={p.y}
           radius={handleR}
-          fill="#fff"
-          stroke="#e8453c"
+          fill={colors.vertexFill}
+          stroke={colors.draftStroke}
           strokeWidth={1.5 / (handleR / 5)}
           strokeScaleEnabled={false}
           draggable

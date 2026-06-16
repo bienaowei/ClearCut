@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { DrawMethod, EditorMode } from '../../types';
 import { useEditorStore } from '../../stores/editorStore';
 import { useHistoryStore } from '../../stores/historyStore';
+import { useThemeStore } from '../../stores/themeStore';
 import { useHistory } from '../../hooks/useHistory';
 import { useExport } from '../../hooks/useExport';
 import { useConfirm } from '../common/ConfirmDialog';
@@ -42,6 +43,9 @@ export default function Toolbar({
 
   const { exportBrush, exportCropAll, exportRetain } = useExport();
   const confirm = useConfirm();
+
+  const theme = useThemeStore((s) => s.theme);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
 
   const handleClearImage = async () => {
     const ok = await confirm({
@@ -152,6 +156,13 @@ export default function Toolbar({
       </div>
 
       <div className="toolbar-group right">
+        <button
+          className="icon-btn ghost"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? '切换到亮色主题' : '切换到暗色主题'}
+        >
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+        </button>
         <button className="icon-btn ghost" onClick={onToggleHelp} title="快捷键">
           <Icon name="keyboard" />
         </button>
