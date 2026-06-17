@@ -100,39 +100,42 @@ export default function BrushLayer() {
             </>
           );
         })()}
-        {cursor && brushTool === 'brush' && (
-          <>
-            {/* 深色衬底，保证浅色背景上也能看清 */}
-            <Circle
-              x={cursor.x}
-              y={cursor.y}
-              radius={brushSize / 2}
-              stroke="rgba(0,0,0,0.55)"
-              strokeWidth={3}
-              strokeScaleEnabled={false}
-            />
-            {/* 亮色虚线圈 */}
-            <Circle
-              x={cursor.x}
-              y={cursor.y}
-              radius={brushSize / 2}
-              stroke={colors.brush}
-              strokeWidth={1.5}
-              strokeScaleEnabled={false}
-              dash={[4, 4]}
-            />
-            {/* 中心点 */}
-            <Circle
-              x={cursor.x}
-              y={cursor.y}
-              radius={1.5}
-              fill={colors.brush}
-              stroke="rgba(0,0,0,0.55)"
-              strokeWidth={1}
-              strokeScaleEnabled={false}
-            />
-          </>
-        )}
+        {cursor && (brushTool === 'brush' || brushTool === 'restore') && (() => {
+          const ringColor = brushTool === 'restore' ? '#22c55e' : colors.brush;
+          return (
+            <>
+              {/* 深色衬底，保证浅色背景上也能看清 */}
+              <Circle
+                x={cursor.x}
+                y={cursor.y}
+                radius={brushSize / 2}
+                stroke="rgba(0,0,0,0.55)"
+                strokeWidth={3}
+                strokeScaleEnabled={false}
+              />
+              {/* 亮色虚线圈 */}
+              <Circle
+                x={cursor.x}
+                y={cursor.y}
+                radius={brushSize / 2}
+                stroke={ringColor}
+                strokeWidth={1.5}
+                strokeScaleEnabled={false}
+                dash={[4, 4]}
+              />
+              {/* 中心点 */}
+              <Circle
+                x={cursor.x}
+                y={cursor.y}
+                radius={1.5}
+                fill={ringColor}
+                stroke="rgba(0,0,0,0.55)"
+                strokeWidth={1}
+                strokeScaleEnabled={false}
+              />
+            </>
+          );
+        })()}
       </Layer>
     </>
   );

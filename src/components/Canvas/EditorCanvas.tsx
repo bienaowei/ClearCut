@@ -134,7 +134,7 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
           ? 'default'
           : spaceDown
           ? 'grab'
-          : mode === 'brush' && brushTool === 'brush'
+          : mode === 'brush' && (brushTool === 'brush' || brushTool === 'restore')
           ? 'none'
           : mode === 'brush' && brushTool === 'wand'
           ? WAND_CURSOR

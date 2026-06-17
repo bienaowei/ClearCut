@@ -10,6 +10,7 @@ import Icon, { type IconName } from '../common/Icon';
 const TOOLS: { key: BrushTool; label: string; icon: IconName }[] = [
   { key: 'brush', label: '画笔', icon: 'brush' },
   { key: 'wand', label: '魔术棒', icon: 'wand' },
+  { key: 'restore', label: '恢复', icon: 'undo' },
 ];
 
 export default function BrushPanel() {
@@ -87,7 +88,7 @@ export default function BrushPanel() {
           ))}
         </div>
 
-        {brushTool === 'brush' ? (
+        {brushTool === 'brush' || brushTool === 'restore' ? (
           <>
             <div className="slider-row">
               <label>画笔大小</label>
@@ -114,7 +115,11 @@ export default function BrushPanel() {
               value={Math.round(brushHardness * 100)}
               onChange={(e) => setBrushHardness(Number(e.target.value) / 100)}
             />
-            <small className="muted">硬边完全擦除，软边渐变透明</small>
+            <small className="muted">
+              {brushTool === 'restore'
+                ? '在误擦区域涂抹即可恢复原图像素'
+                : '硬边完全擦除，软边渐变透明'}
+            </small>
           </>
         ) : (
           <>

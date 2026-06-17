@@ -188,7 +188,7 @@
 
 /* ============ Sidebar ============ */
 .sidebar {
-  width: 300px;
+  width: 330px;
   flex-shrink: 0;
   background: var(--panel);
   border-left: 1px solid var(--border);

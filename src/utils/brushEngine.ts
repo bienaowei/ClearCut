@@ -55,7 +55,13 @@ class BrushEngine {
    * @param size 画笔直径（原图像素）
    * @param hardness 0(软) ~ 1(硬)
    */
-  paintSegment(from: Point, to: Point, size: number, hardness: number) {
+  paintSegment(
+    from: Point,
+    to: Point,
+    size: number,
+    hardness: number,
+    mode: 'erase' | 'restore' = 'erase',
+  ) {
     if (!this.maskCanvas || !this.displayCanvas) return;
     const radius = size / 2;
     // 路径插值补点，防止快速移动断线
@@ -70,10 +76,16 @@ class BrushEngine {
       const t = i / count;
       const x = from.x + (to.x - from.x) * t;
       const y = from.y + (to.y - from.y) * t;
-      this.stampDab(maskCtx, x, y, radius, hardness, 'source-over');
-      this.stampDab(dispCtx, x, y, radius, hardness, 'destination-out');
+      if (mode === 'erase') {
+        this.stampDab(maskCtx, x, y, radius, hardness, 'source-over');
+        this.stampDab(dispCtx, x, y, radius, hardness, 'destination-out');
+      } else {
+        // 恢复：从 mask 减去对应区域；display 重新合成
+        this.stampDab(maskCtx, x, y, radius, hardness, 'destination-out');
+      }
     }
-    this.onChange?.();
+    if (mode === 'restore') this.rebuildDisplay();
+    else this.onChange?.();
   }
 
   private stampDab(

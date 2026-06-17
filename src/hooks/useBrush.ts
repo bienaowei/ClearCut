@@ -9,6 +9,7 @@ import { useHistory } from './useHistory';
  * 接收的点均为原图坐标。
  */
 export function useBrush() {
+  const brushTool = useEditorStore((s) => s.brushTool);
   const brushSize = useEditorStore((s) => s.brushSize);
   const brushHardness = useEditorStore((s) => s.brushHardness);
   const { commitBrush } = useHistory();
@@ -16,15 +17,17 @@ export function useBrush() {
   const drawing = useRef(false);
   const lastPoint = useRef<Point | null>(null);
 
+  const mode: 'erase' | 'restore' = brushTool === 'restore' ? 'restore' : 'erase';
+
   const begin = useCallback(
     (pt: Point) => {
       if (!brushEngine.ready) return;
       drawing.current = true;
       lastPoint.current = pt;
-      // 起点也擦一下（单击点擦除）
-      brushEngine.paintSegment(pt, pt, brushSize, brushHardness);
+      // 起点也擦/恢复一下（单击点也生效）
+      brushEngine.paintSegment(pt, pt, brushSize, brushHardness, mode);
     },
-    [brushSize, brushHardness],
+    [brushSize, brushHardness, mode],
   );
 
   const move = useCallback(
@@ -35,10 +38,11 @@ export function useBrush() {
         pt,
         brushSize,
         brushHardness,
+        mode,
       );
       lastPoint.current = pt;
     },
-    [brushSize, brushHardness],
+    [brushSize, brushHardness, mode],
   );
 
   const end = useCallback(() => {
