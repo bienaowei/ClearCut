@@ -16,6 +16,11 @@ import PolygonLayer from './PolygonLayer';
 import PreviewOverlay from './PreviewOverlay';
 import Icon from '../common/Icon';
 
+// 魔术棒光标：白描边 + 黑填充，星头在左侧、棒柄朝右下，热点对齐星头(左上)
+const WAND_PATH = 'M9 4V2M9 16v-2M16 9h-2M4 9h-2M6.2 11.8 5 13M6.2 6.2 5 5M21 21l-9-9M11.8 6.2 13 5';
+const WAND_CURSOR_SVG = `<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'><g stroke='white' stroke-width='3.5'><path d='${WAND_PATH}'/></g><g stroke='black' stroke-width='1.8'><path d='${WAND_PATH}'/></g></svg>`;
+const WAND_CURSOR = `url("data:image/svg+xml;utf8,${encodeURIComponent(WAND_CURSOR_SVG)}") 4 10, crosshair`;
+
 interface Props {
   containerRef: React.RefObject<HTMLDivElement>;
   onDropFile: (file: File) => void;
@@ -32,6 +37,7 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
   const offset = useEditorStore((s) => s.offset);
   const setOffset = useEditorStore((s) => s.setOffset);
   const setCursor = useEditorStore((s) => s.setCursor);
+  const triggerWandFlash = useEditorStore((s) => s.triggerWandFlash);
   const setActive = useCropStore((s) => s.setActive);
 
   const stageRef = useRef<Konva.Stage>(null);
@@ -74,7 +80,10 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
           tolerance: toleranceToDistance(wandTolerance),
           contiguous: wandContiguous,
         });
-        if (ok) commitBrush();
+        if (ok) {
+          triggerWandFlash(pt);
+          commitBrush();
+        }
       } else {
         brush.begin(pt);
       }
@@ -127,6 +136,8 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
           ? 'grab'
           : mode === 'brush' && brushTool === 'brush'
           ? 'none'
+          : mode === 'brush' && brushTool === 'wand'
+          ? WAND_CURSOR
           : 'crosshair',
       }}
       data-dragover={dragOver ? 'true' : undefined}

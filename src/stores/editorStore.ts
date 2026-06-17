@@ -20,6 +20,8 @@ interface EditorState {
   offset: Point;
   /** 光标在原图坐标系下的位置（状态栏用） */
   cursor: Point | null;
+  /** 魔术棒点击反馈：每次点击递增 id，触发画布上的扩散动画 */
+  wandFlash: { x: number; y: number; id: number } | null;
 
   // 画笔参数
   brushTool: BrushTool; // 画笔 / 魔术棒
@@ -39,6 +41,7 @@ interface EditorState {
   setZoom: (zoom: number) => void;
   setOffset: (offset: Point) => void;
   setCursor: (cursor: Point | null) => void;
+  triggerWandFlash: (pt: Point) => void;
   setBrushTool: (tool: BrushTool) => void;
   setBrushSize: (size: number) => void;
   setBrushHardness: (hardness: number) => void;
@@ -56,6 +59,7 @@ export const useEditorStore = create<EditorState>((set) => ({
   zoom: 1,
   offset: { x: 0, y: 0 },
   cursor: null,
+  wandFlash: null,
 
   brushTool: 'brush',
   brushSize: 30,
@@ -74,6 +78,10 @@ export const useEditorStore = create<EditorState>((set) => ({
   setZoom: (zoom) => set({ zoom }),
   setOffset: (offset) => set({ offset }),
   setCursor: (cursor) => set({ cursor }),
+  triggerWandFlash: (pt) =>
+    set((s) => ({
+      wandFlash: { x: pt.x, y: pt.y, id: (s.wandFlash?.id ?? 0) + 1 },
+    })),
   setBrushTool: (brushTool) => set({ brushTool }),
   setBrushSize: (brushSize) => set({ brushSize }),
   setBrushHardness: (brushHardness) => set({ brushHardness }),
