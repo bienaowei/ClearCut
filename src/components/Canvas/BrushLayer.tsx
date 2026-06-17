@@ -9,6 +9,7 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 export default function BrushLayer() {
   const image = useEditorStore((s) => s.image);
   const cursor = useEditorStore((s) => s.cursor);
+  const brushTool = useEditorStore((s) => s.brushTool);
   const brushSize = useEditorStore((s) => s.brushSize);
   const colors = useThemeColors();
   const imageLayerRef = useRef<Konva.Layer>(null);
@@ -37,7 +38,7 @@ export default function BrushLayer() {
         />
       </Layer>
       <Layer listening={false}>
-        {cursor && (
+        {cursor && brushTool === 'brush' && (
           <>
             {/* 深色衬底，保证浅色背景上也能看清 */}
             <Circle

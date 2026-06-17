@@ -1,5 +1,6 @@
 import type { Point } from '../types';
 import { createCanvas, get2d } from './canvasUtils';
+import { computeWandMask, type WandOptions } from './magicWand';
 
 /**
  * 画笔引擎（模块级单例）。
@@ -101,6 +102,22 @@ class BrushEngine {
       ctx.fill();
     }
     ctx.restore();
+  }
+
+  /**
+   * 魔术棒 / 一键去背：从种子点漫水识别背景并合并进 mask（擦成透明）。
+   * 复用画笔的 maskCanvas，因此撤销/重做、导出、后续画笔补刀全部自动生效。
+   * 调用方负责在成功后存一次历史快照。
+   * @returns 是否产生了有效擦除
+   */
+  magicErase(seeds: Point[], options: WandOptions): boolean {
+    if (!this.image || !this.maskCanvas) return false;
+    const eraseCanvas = computeWandMask(this.image, seeds, options);
+    const ctx = get2d(this.maskCanvas);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(eraseCanvas, 0, 0);
+    this.rebuildDisplay();
+    return true;
   }
 
   /** 导出 mask 的快照（撤销栈用） */

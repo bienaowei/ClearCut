@@ -29,6 +29,9 @@ export interface CropResult {
 
 export type EditorMode = 'brush' | 'crop' | 'retain';
 
+/** 画笔模式下的子工具：手动画笔 / 魔术棒一键去背 */
+export type BrushTool = 'brush' | 'wand';
+
 /** 多边形 / 套索：crop 与 retain 模式下的绘制方式 */
 export type DrawMethod = 'polygon' | 'lasso';
 

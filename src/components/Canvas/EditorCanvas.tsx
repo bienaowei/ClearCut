@@ -8,6 +8,8 @@ import { useBrush } from '../../hooks/useBrush';
 import { usePolygon } from '../../hooks/usePolygon';
 import { useHistory } from '../../hooks/useHistory';
 import { useCropStore } from '../../stores/cropStore';
+import { brushEngine } from '../../utils/brushEngine';
+import { toleranceToDistance } from '../../utils/magicWand';
 import ImageLayer from './ImageLayer';
 import BrushLayer from './BrushLayer';
 import PolygonLayer from './PolygonLayer';
@@ -21,6 +23,9 @@ interface Props {
 
 export default function EditorCanvas({ containerRef, onDropFile }: Props) {
   const mode = useEditorStore((s) => s.mode);
+  const brushTool = useEditorStore((s) => s.brushTool);
+  const wandTolerance = useEditorStore((s) => s.wandTolerance);
+  const wandContiguous = useEditorStore((s) => s.wandContiguous);
   const drawMethod = useEditorStore((s) => s.drawMethod);
   const image = useEditorStore((s) => s.image);
   const zoom = useEditorStore((s) => s.zoom);
@@ -37,7 +42,7 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
   const { spaceDown, handleWheel } = useCanvasZoom();
   const brush = useBrush();
   const polygon = usePolygon();
-  const { commitPolygons } = useHistory();
+  const { commitPolygons, commitBrush } = useHistory();
 
   // 容器尺寸自适应
   useEffect(() => {
@@ -63,7 +68,16 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
     const pt = getImagePoint();
     if (!pt) return;
     if (mode === 'brush') {
-      brush.begin(pt);
+      if (brushTool === 'wand') {
+        // 魔术棒：点哪去哪，漫水擦除连通/同色背景
+        const ok = brushEngine.magicErase([pt], {
+          tolerance: toleranceToDistance(wandTolerance),
+          contiguous: wandContiguous,
+        });
+        if (ok) commitBrush();
+      } else {
+        brush.begin(pt);
+      }
     } else if (drawMethod === 'lasso') {
       // 套索：仅在空白处按下开始自由绘制；点中多边形交给其自身处理（选择/拖拽）
       if (e.target === e.target.getStage()) {
@@ -111,7 +125,7 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
           ? 'default'
           : spaceDown
           ? 'grab'
-          : mode === 'brush'
+          : mode === 'brush' && brushTool === 'brush'
           ? 'none'
           : 'crosshair',
       }}

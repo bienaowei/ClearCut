@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type {
+  BrushTool,
   DrawMethod,
   EditorMode,
   ExportConfig,
@@ -21,8 +22,13 @@ interface EditorState {
   cursor: Point | null;
 
   // 画笔参数
+  brushTool: BrushTool; // 画笔 / 魔术棒
   brushSize: number;
   brushHardness: number; // 0(软) ~ 1(硬)
+
+  // 魔术棒参数
+  wandTolerance: number; // 0~100，容差
+  wandContiguous: boolean; // true=仅连通区域，false=全图同色
 
   exportConfig: ExportConfig;
   retainConfig: RetainConfig;
@@ -33,8 +39,11 @@ interface EditorState {
   setZoom: (zoom: number) => void;
   setOffset: (offset: Point) => void;
   setCursor: (cursor: Point | null) => void;
+  setBrushTool: (tool: BrushTool) => void;
   setBrushSize: (size: number) => void;
   setBrushHardness: (hardness: number) => void;
+  setWandTolerance: (tolerance: number) => void;
+  setWandContiguous: (contiguous: boolean) => void;
   setExportConfig: (patch: Partial<ExportConfig>) => void;
   setRetainConfig: (patch: Partial<RetainConfig>) => void;
 }
@@ -48,8 +57,12 @@ export const useEditorStore = create<EditorState>((set) => ({
   offset: { x: 0, y: 0 },
   cursor: null,
 
+  brushTool: 'brush',
   brushSize: 30,
   brushHardness: 1,
+
+  wandTolerance: 30,
+  wandContiguous: true,
 
   exportConfig: { mode: 'adaptive', width: 256, height: 256, padding: 0 },
   retainConfig: { mode: 'origin', width: 256, height: 256, padding: 0 },
@@ -61,8 +74,11 @@ export const useEditorStore = create<EditorState>((set) => ({
   setZoom: (zoom) => set({ zoom }),
   setOffset: (offset) => set({ offset }),
   setCursor: (cursor) => set({ cursor }),
+  setBrushTool: (brushTool) => set({ brushTool }),
   setBrushSize: (brushSize) => set({ brushSize }),
   setBrushHardness: (brushHardness) => set({ brushHardness }),
+  setWandTolerance: (wandTolerance) => set({ wandTolerance }),
+  setWandContiguous: (wandContiguous) => set({ wandContiguous }),
   setExportConfig: (patch) =>
     set((s) => ({ exportConfig: { ...s.exportConfig, ...patch } })),
   setRetainConfig: (patch) =>

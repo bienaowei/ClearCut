@@ -20,7 +20,8 @@ export type IconName =
   | 'dimensions'
   | 'grip'
   | 'sun'
-  | 'moon';
+  | 'moon'
+  | 'wand';
 
 interface Props {
   name: IconName;
@@ -156,6 +157,11 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   moon: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,
+  wand: (
+    <>
+      <path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M15 9h0M17.8 6.2L19 5M3 21l9-9M12.2 6.2L11 5" />
+    </>
+  ),
 };
 
 export default function Icon({ name, size = 16, className }: Props) {
