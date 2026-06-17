@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import './App.css';
 import { useEditorStore } from './stores/editorStore';
 import { useImageLoader } from './hooks/useImageLoader';
+import { useHistoryShortcuts } from './hooks/useHistoryShortcuts';
 import Toolbar from './components/Toolbar/Toolbar';
 import EditorCanvas from './components/Canvas/EditorCanvas';
 import BrushPanel from './components/Sidebar/BrushPanel';
@@ -24,6 +25,7 @@ function AppInner() {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const { loadFromFile, clearImage } = useImageLoader(canvasContainerRef);
   const [helpOpen, setHelpOpen] = useState(false);
+  useHistoryShortcuts();
 
   return (
     <div className="app">
