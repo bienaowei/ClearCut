@@ -67,6 +67,10 @@ export default function PolygonLayer({
             key={poly.id}
             draggable
             onDragEnd={(e) => {
+              // 顶点手柄自身可拖动，其 dragend 会冒泡到此 Group。
+              // 只处理 Group 整体平移，忽略来自子节点（顶点）的冒泡事件，
+              // 否则会把顶点坐标当成位移量、导致整个多边形跳到别处。
+              if (e.target !== e.currentTarget) return;
               const node = e.target as Konva.Group;
               const dx = node.x();
               const dy = node.y();
