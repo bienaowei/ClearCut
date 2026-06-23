@@ -7,12 +7,29 @@ import { useAlert } from '../components/common/ConfirmDialog';
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp'];
 
+/**
+ * 当前图片的 blob URL。必须在图片整个生命周期内保持有效：
+ * 浏览器在内存压力下会丢弃已解码的位图，之后会用 img.src 重新解码，
+ * 若此时 URL 已被吊销，drawImage 会画出空白（表现为“图片被清空”）。
+ * 因此只在加载新图 / 清除时才吊销上一张的 URL。
+ */
+let currentObjectUrl: string | null = null;
+
+function releaseCurrentObjectUrl(): void {
+  if (currentObjectUrl) {
+    URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl = null;
+  }
+}
+
 function loadImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => {
-      URL.revokeObjectURL(url);
+      // 吊销上一张、保留当前这张，避免位图被回收后无法重新解码
+      releaseCurrentObjectUrl();
+      currentObjectUrl = url;
       resolve(img);
     };
     img.onerror = () => {
@@ -93,6 +110,7 @@ export function useImageLoader(
 
   /** 清除当前图片，恢复到空白初始状态 */
   const clearImage = useCallback(() => {
+    releaseCurrentObjectUrl();
     setImage(null, 'image');
     brushEngine.dispose();
     clearCrop();

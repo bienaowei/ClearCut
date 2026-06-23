@@ -514,6 +514,15 @@ button.block {
     transform: scale(1) translateY(0);
   }
 }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 0.8s linear infinite;
+  transform-origin: center;
+}
 /* ---------- 确认弹窗 ---------- */
 .confirm-modal {
   width: 360px;

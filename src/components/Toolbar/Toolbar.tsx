@@ -20,9 +20,15 @@ const MODES: { key: EditorMode; label: string; icon: IconName }[] = [
   { key: 'retain', label: '保留', icon: 'dimensions' },
 ];
 
-const DRAW_METHODS: { key: DrawMethod; label: string; icon: IconName }[] = [
+const DRAW_METHODS: {
+  key: DrawMethod;
+  label: string;
+  icon: IconName;
+  cropOnly?: boolean;
+}[] = [
   { key: 'polygon', label: '多边形', icon: 'polygon' },
   { key: 'lasso', label: '套索', icon: 'lasso' },
+  { key: 'pick', label: '点选', icon: 'target', cropOnly: true },
 ];
 
 export default function Toolbar({
@@ -42,6 +48,7 @@ export default function Toolbar({
   const canRedo = useHistoryStore((s) => s.canRedo());
 
   const { exportBrush, exportCropAll, exportRetain } = useExport();
+  const isExporting = useEditorStore((s) => s.isExporting);
   const confirm = useConfirm();
 
   const theme = useThemeStore((s) => s.theme);
@@ -59,9 +66,9 @@ export default function Toolbar({
   };
 
   const handleExport = () => {
-    if (mode === 'brush') exportBrush(false);
+    if (mode === 'brush') void exportBrush(false);
     else if (mode === 'crop') void exportCropAll();
-    else exportRetain();
+    else void exportRetain();
   };
 
   const exportLabel = mode === 'crop' ? '全部导出' : '导出 PNG';
@@ -94,7 +101,7 @@ export default function Toolbar({
         <>
           <span className="toolbar-divider" />
           <div className="seg-control methods" title="绘制方式">
-            {DRAW_METHODS.map((m) => (
+            {DRAW_METHODS.filter((m) => !m.cropOnly || mode === 'crop').map((m) => (
               <button
                 key={m.key}
                 className={`seg-item${drawMethod === m.key ? ' active' : ''}`}
@@ -166,9 +173,22 @@ export default function Toolbar({
         <button className="icon-btn ghost" onClick={onToggleHelp} title="快捷键">
           <Icon name="keyboard" />
         </button>
-        <button className="primary" onClick={handleExport} disabled={!image}>
-          <Icon name="download" />
-          {exportLabel}
+        <button
+          className="primary"
+          onClick={handleExport}
+          disabled={!image || isExporting}
+        >
+          {isExporting ? (
+            <>
+              <Icon name="loader" className="spin" />
+              导出中…
+            </>
+          ) : (
+            <>
+              <Icon name="download" />
+              {exportLabel}
+            </>
+          )}
         </button>
       </div>
     </div>

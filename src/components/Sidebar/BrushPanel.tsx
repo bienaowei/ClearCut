@@ -25,6 +25,7 @@ export default function BrushPanel() {
   const setWandTolerance = useEditorStore((s) => s.setWandTolerance);
   const setWandContiguous = useEditorStore((s) => s.setWandContiguous);
   const image = useEditorStore((s) => s.image);
+  const isExporting = useEditorStore((s) => s.isExporting);
   const { exportBrush } = useExport();
   const { commitBrush } = useHistory();
   const [autoCrop, setAutoCrop] = useState(false);
@@ -162,11 +163,20 @@ export default function BrushPanel() {
 
       <button
         className="primary block"
-        disabled={!image}
-        onClick={() => exportBrush(autoCrop)}
+        disabled={!image || isExporting}
+        onClick={() => void exportBrush(autoCrop)}
       >
-        <Icon name="download" />
-        导出透明 PNG
+        {isExporting ? (
+          <>
+            <Icon name="loader" className="spin" />
+            导出中…
+          </>
+        ) : (
+          <>
+            <Icon name="download" />
+            导出透明 PNG
+          </>
+        )}
       </button>
     </div>
   );

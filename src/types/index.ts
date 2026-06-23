@@ -32,8 +32,8 @@ export type EditorMode = 'brush' | 'crop' | 'retain';
 /** 画笔模式下的子工具：手动画笔 / 魔术棒一键去背 / 恢复画笔 */
 export type BrushTool = 'brush' | 'wand' | 'restore';
 
-/** 多边形 / 套索：crop 与 retain 模式下的绘制方式 */
-export type DrawMethod = 'polygon' | 'lasso';
+/** 多边形 / 套索 / 点选：crop 与 retain 模式下的绘制方式。pick 仅用于 crop */
+export type DrawMethod = 'polygon' | 'lasso' | 'pick';
 
 /** 模式三反向裁剪的导出方式 */
 export type RetainExportMode = 'origin' | 'bbox' | 'fixed';

@@ -14,8 +14,9 @@ const LASSO_SIMPLIFY_PX = 2;
 
 /**
  * 多边形绘制交互（裁剪/保留模式共用）。
- * - crop 模式：可创建多个多边形
- * - retain 模式：仅保留一个，新建替换旧的
+ * 两种模式均可创建多个多边形：
+ * - crop 模式：每个多边形各自导出
+ * - retain 模式：所有多边形内部保留，外部透明
  */
 export function usePolygon() {
   const mode = useEditorStore((s) => s.mode);
@@ -25,8 +26,6 @@ export function usePolygon() {
 
   const addPolygon = useCropStore((s) => s.addPolygon);
   const removePolygon = useCropStore((s) => s.removePolygon);
-  const setActive = useCropStore((s) => s.setActive);
-  const clear = useCropStore((s) => s.clear);
 
   const [draft, setDraft] = useState<Point[]>([]);
   const [hover, setHover] = useState<Point | null>(null);
@@ -39,14 +38,13 @@ export function usePolygon() {
   const commitPoints = useCallback(
     (pts: Point[]) => {
       if (pts.length < 3) return false;
-      if (mode === 'retain') clear(); // 单个多边形，替换旧的
       addPolygon(createPolygon(pts, true));
       setDraft([]);
       setHover(null);
       commitPolygons();
       return true;
     },
-    [mode, addPolygon, clear, commitPolygons],
+    [addPolygon, commitPolygons],
   );
 
   const closeDraft = useCallback(() => {
@@ -58,9 +56,6 @@ export function usePolygon() {
       const pts = draftRef.current;
       if (pts.length === 0) {
         // 开始新多边形
-        if (mode === 'retain') {
-          setActive(null);
-        }
         setDraft([pt]);
         return;
       }
@@ -72,7 +67,7 @@ export function usePolygon() {
       }
       setDraft([...pts, pt]);
     },
-    [mode, zoom, setActive, closeDraft],
+    [zoom, closeDraft],
   );
 
   const handleDblClick = useCallback(() => {
@@ -84,16 +79,12 @@ export function usePolygon() {
   }, []);
 
   // —— 套索（自由手绘）——
-  const lassoBegin = useCallback(
-    (pt: Point) => {
-      if (mode === 'retain') setActive(null);
-      lassoActiveRef.current = true;
-      setIsLasso(true);
-      setHover(null);
-      setDraft([pt]);
-    },
-    [mode, setActive],
-  );
+  const lassoBegin = useCallback((pt: Point) => {
+    lassoActiveRef.current = true;
+    setIsLasso(true);
+    setHover(null);
+    setDraft([pt]);
+  }, []);
 
   const lassoMove = useCallback(
     (pt: Point) => {

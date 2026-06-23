@@ -21,7 +21,9 @@ export type IconName =
   | 'grip'
   | 'sun'
   | 'moon'
-  | 'wand';
+  | 'wand'
+  | 'target'
+  | 'loader';
 
 interface Props {
   name: IconName;
@@ -161,6 +163,16 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M15 9h0M17.8 6.2L19 5M3 21l9-9M12.2 6.2L11 5" />
     </>
+  ),
+  target: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4.5" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    </>
+  ),
+  loader: (
+    <path d="M21 12a9 9 0 1 1-6.22-8.56" />
   ),
 };
 

@@ -9,9 +9,9 @@ import { useCropStore } from '../../stores/cropStore';
 export default function PreviewOverlay() {
   const image = useEditorStore((s) => s.image);
   const polygons = useCropStore((s) => s.polygons);
-  const poly = polygons[0];
+  const regions = polygons.filter((p) => p.closed && p.points.length >= 3);
 
-  if (!image || !poly || !poly.closed || poly.points.length < 3) return null;
+  if (!image || regions.length === 0) return null;
 
   const w = image.naturalWidth;
   const h = image.naturalHeight;
@@ -23,12 +23,14 @@ export default function PreviewOverlay() {
           ctx.beginPath();
           // 外框（顺时针）
           ctx.rect(0, 0, w, h);
-          // 内部多边形（作为挖空区域，evenodd 规则）
-          ctx.moveTo(poly.points[0].x, poly.points[0].y);
-          for (let i = 1; i < poly.points.length; i++) {
-            ctx.lineTo(poly.points[i].x, poly.points[i].y);
+          // 所有多边形作为挖空区域（evenodd 规则）
+          for (const poly of regions) {
+            ctx.moveTo(poly.points[0].x, poly.points[0].y);
+            for (let i = 1; i < poly.points.length; i++) {
+              ctx.lineTo(poly.points[i].x, poly.points[i].y);
+            }
+            ctx.closePath();
           }
-          ctx.closePath();
           const c = ctx as unknown as CanvasRenderingContext2D;
           c.fillStyle = 'rgba(20, 12, 12, 0.6)';
           c.fill('evenodd');

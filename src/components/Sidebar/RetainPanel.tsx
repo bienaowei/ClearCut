@@ -15,7 +15,8 @@ export default function RetainPanel() {
   const setRetainConfig = useEditorStore((s) => s.setRetainConfig);
   const polygons = useCropStore((s) => s.polygons);
   const { exportRetain } = useExport();
-  const hasPoly = polygons.length > 0 && polygons[0].closed;
+  const isExporting = useEditorStore((s) => s.isExporting);
+  const hasPoly = polygons.some((p) => p.closed && p.points.length >= 3);
 
   return (
     <div className="panel-content">
@@ -25,7 +26,7 @@ export default function RetainPanel() {
         </span>
         <div>
           <h3>多边形保留</h3>
-          <p className="hint">内部保留 · 外部透明（单个区域）</p>
+          <p className="hint">内部保留 · 外部透明（可多个区域）</p>
         </div>
       </header>
 
@@ -91,9 +92,22 @@ export default function RetainPanel() {
         )}
       </div>
 
-      <button className="primary block" disabled={!hasPoly} onClick={exportRetain}>
-        <Icon name="download" />
-        导出透明 PNG
+      <button
+        className="primary block"
+        disabled={!hasPoly || isExporting}
+        onClick={() => void exportRetain()}
+      >
+        {isExporting ? (
+          <>
+            <Icon name="loader" className="spin" />
+            导出中…
+          </>
+        ) : (
+          <>
+            <Icon name="download" />
+            导出透明 PNG
+          </>
+        )}
       </button>
     </div>
   );

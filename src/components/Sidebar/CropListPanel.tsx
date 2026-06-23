@@ -3,6 +3,7 @@ import type { ExportSizeMode } from '../../types';
 import { useEditorStore } from '../../stores/editorStore';
 import { useCropStore } from '../../stores/cropStore';
 import { useExport } from '../../hooks/useExport';
+import { usePick } from '../../hooks/usePick';
 import Icon from '../common/Icon';
 
 const SIZE_MODES: { key: ExportSizeMode; label: string }[] = [
@@ -14,6 +15,10 @@ const SIZE_MODES: { key: ExportSizeMode; label: string }[] = [
 export default function CropListPanel() {
   const exportConfig = useEditorStore((s) => s.exportConfig);
   const setExportConfig = useEditorStore((s) => s.setExportConfig);
+  const drawMethod = useEditorStore((s) => s.drawMethod);
+  const pickAlphaThreshold = useEditorStore((s) => s.pickAlphaThreshold);
+  const setPickAlphaThreshold = useEditorStore((s) => s.setPickAlphaThreshold);
+  const hasImage = useEditorStore((s) => s.image !== null);
   const polygons = useCropStore((s) => s.polygons);
   const activeId = useCropStore((s) => s.activePolygonId);
   const setActive = useCropStore((s) => s.setActive);
@@ -22,6 +27,9 @@ export default function CropListPanel() {
   const reorder = useCropStore((s) => s.reorder);
 
   const { computeCropResults, exportCropSingle, exportCropAll } = useExport();
+  const isExporting = useEditorStore((s) => s.isExporting);
+  const { pickAll } = usePick();
+  const isPick = drawMethod === 'pick';
   const dragIndex = useRef<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
 
@@ -49,9 +57,44 @@ export default function CropListPanel() {
         </span>
         <div>
           <h3>多边形裁剪</h3>
-          <p className="hint">单击加点 · 双击/点起点闭合 · ESC 取消</p>
+          <p className="hint">
+            {isPick
+              ? '点击物品自动框出 · 或下方一键全分'
+              : '单击加点 · 双击/点起点闭合 · ESC 取消'}
+          </p>
         </div>
       </header>
+
+      {isPick && (
+        <div className="card">
+          <label className="card-label">点选裁剪</label>
+          <div className="slider-row">
+            <label>透明阈值</label>
+            <span className="value-badge">{pickAlphaThreshold}</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={128}
+            value={pickAlphaThreshold}
+            onChange={(e) => setPickAlphaThreshold(Number(e.target.value))}
+          />
+          <p className="hint">
+            alpha 大于阈值的像素算作物品；半透明边缘多则调高
+          </p>
+          <button
+            className="block"
+            disabled={!hasImage}
+            onClick={() => {
+              const n = pickAll();
+              if (n === 0) alert('没有识别到不透明物品');
+            }}
+          >
+            <Icon name="target" />
+            一键全分
+          </button>
+        </div>
+      )}
 
       <div className="card">
         <label className="card-label">导出尺寸</label>
@@ -116,7 +159,9 @@ export default function CropListPanel() {
 
       <div className="crop-list">
         {polygons.length === 0 && (
-          <p className="empty-list muted">还没有多边形，在画布上绘制一个</p>
+          <p className="empty-list muted">
+            {isPick ? '点击画布上的物品，或点「一键全分」' : '还没有多边形，在画布上绘制一个'}
+          </p>
         )}
         {polygons.map((poly, i) => {
           const r = resultMap.get(poly.id);
@@ -189,11 +234,20 @@ export default function CropListPanel() {
 
       <button
         className="primary block"
-        disabled={polygons.length === 0}
+        disabled={polygons.length === 0 || isExporting}
         onClick={() => void exportCropAll()}
       >
-        <Icon name="download" />
-        全部导出 (zip)
+        {isExporting ? (
+          <>
+            <Icon name="loader" className="spin" />
+            打包中…
+          </>
+        ) : (
+          <>
+            <Icon name="download" />
+            全部导出 (zip)
+          </>
+        )}
       </button>
     </div>
   );

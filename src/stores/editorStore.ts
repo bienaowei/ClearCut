@@ -32,8 +32,14 @@ interface EditorState {
   wandTolerance: number; // 0~100，容差
   wandContiguous: boolean; // true=仅连通区域，false=全图同色
 
+  // 点选裁剪参数：alpha > 阈值 视为实心像素（0~255）
+  pickAlphaThreshold: number;
+
   exportConfig: ExportConfig;
   retainConfig: RetainConfig;
+
+  /** 是否正在导出（用于按钮转圈/禁用，避免重复点击重复建 Worker） */
+  isExporting: boolean;
 
   setMode: (mode: EditorMode) => void;
   setDrawMethod: (method: DrawMethod) => void;
@@ -47,8 +53,10 @@ interface EditorState {
   setBrushHardness: (hardness: number) => void;
   setWandTolerance: (tolerance: number) => void;
   setWandContiguous: (contiguous: boolean) => void;
+  setPickAlphaThreshold: (threshold: number) => void;
   setExportConfig: (patch: Partial<ExportConfig>) => void;
   setRetainConfig: (patch: Partial<RetainConfig>) => void;
+  setExporting: (isExporting: boolean) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -68,10 +76,20 @@ export const useEditorStore = create<EditorState>((set) => ({
   wandTolerance: 30,
   wandContiguous: true,
 
-  exportConfig: { mode: 'adaptive', width: 256, height: 256, padding: 0 },
-  retainConfig: { mode: 'origin', width: 256, height: 256, padding: 0 },
+  pickAlphaThreshold: 10,
 
-  setMode: (mode) => set({ mode }),
+  exportConfig: { mode: 'adaptive', width: 100, height: 100, padding: 0 },
+  retainConfig: { mode: 'origin', width: 100, height: 100, padding: 0 },
+
+  isExporting: false,
+
+  setMode: (mode) =>
+    set((s) => ({
+      mode,
+      // pick 仅在 crop 模式有效，切到其他模式时回退到多边形
+      drawMethod:
+        mode !== 'crop' && s.drawMethod === 'pick' ? 'polygon' : s.drawMethod,
+    })),
   setDrawMethod: (drawMethod) => set({ drawMethod }),
   setImage: (image, name) =>
     set((s) => ({ image, imageName: name ?? s.imageName })),
@@ -87,8 +105,10 @@ export const useEditorStore = create<EditorState>((set) => ({
   setBrushHardness: (brushHardness) => set({ brushHardness }),
   setWandTolerance: (wandTolerance) => set({ wandTolerance }),
   setWandContiguous: (wandContiguous) => set({ wandContiguous }),
+  setPickAlphaThreshold: (pickAlphaThreshold) => set({ pickAlphaThreshold }),
   setExportConfig: (patch) =>
     set((s) => ({ exportConfig: { ...s.exportConfig, ...patch } })),
   setRetainConfig: (patch) =>
     set((s) => ({ retainConfig: { ...s.retainConfig, ...patch } })),
+  setExporting: (isExporting) => set({ isExporting }),
 }));

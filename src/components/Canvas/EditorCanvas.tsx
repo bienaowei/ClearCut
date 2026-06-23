@@ -6,6 +6,7 @@ import { useEditorStore } from '../../stores/editorStore';
 import { useCanvasZoom } from '../../hooks/useCanvasZoom';
 import { useBrush } from '../../hooks/useBrush';
 import { usePolygon } from '../../hooks/usePolygon';
+import { usePick } from '../../hooks/usePick';
 import { useHistory } from '../../hooks/useHistory';
 import { useCropStore } from '../../stores/cropStore';
 import { brushEngine } from '../../utils/brushEngine';
@@ -48,6 +49,7 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
   const { spaceDown, handleWheel } = useCanvasZoom();
   const brush = useBrush();
   const polygon = usePolygon();
+  const pick = usePick();
   const { commitPolygons, commitBrush } = useHistory();
 
   // 容器尺寸自适应
@@ -86,6 +88,12 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
         }
       } else {
         brush.begin(pt);
+      }
+    } else if (drawMethod === 'pick') {
+      // 点选：点哪个物品就按 alpha 连通域框出哪个，追加一个裁剪区
+      if (e.target === e.target.getStage()) {
+        setActive(null);
+        pick.pickAt(pt);
       }
     } else if (drawMethod === 'lasso') {
       // 套索：仅在空白处按下开始自由绘制；点中多边形交给其自身处理（选择/拖拽）

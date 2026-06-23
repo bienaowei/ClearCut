@@ -6,7 +6,9 @@ import { brushEngine } from '../utils/brushEngine';
 import {
   clipPolygonToCanvas,
   compositeWithMask,
+  createCanvas,
   cropCanvas,
+  get2d,
   getContentBBox,
 } from '../utils/canvasUtils';
 import { getBBox } from '../utils/polygonMath';
@@ -16,24 +18,53 @@ import {
   sanitizeName,
 } from '../utils/exportUtils';
 
+/** 让出一帧，让按钮的“导出中”状态先渲染，再跑阻塞主线程的重活 */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+}
+
 export function useExport() {
   const image = useEditorStore((s) => s.image);
   const imageName = useEditorStore((s) => s.imageName);
   const exportConfig = useEditorStore((s) => s.exportConfig);
   const retainConfig = useEditorStore((s) => s.retainConfig);
+  const setExporting = useEditorStore((s) => s.setExporting);
+
+  /**
+   * 统一包裹导出：置“导出中”→ 让出一帧渲染转圈 → 跑重活 →
+   * 复位状态。防重复点击，失败弹提示。
+   */
+  const runExport = useCallback(
+    async (task: () => void | Promise<void>) => {
+      if (useEditorStore.getState().isExporting) return;
+      setExporting(true);
+      try {
+        await nextFrame(); // 先让“导出中”渲染出来，再跑阻塞主线程的重活
+        await task();
+      } catch (err) {
+        alert(`导出失败：${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        setExporting(false);
+      }
+    },
+    [setExporting],
+  );
 
   // ---- 模式一：画笔擦除导出 ----
   const exportBrush = useCallback(
-    (autoCrop: boolean) => {
-      if (!image) return;
-      let canvas = compositeWithMask(image, brushEngine.maskCanvas);
-      if (autoCrop) {
-        const bbox = getContentBBox(canvas);
-        if (bbox) canvas = cropCanvas(canvas, bbox);
-      }
-      downloadDataUrl(canvas.toDataURL('image/png'), `${imageName}_cutout.png`);
-    },
-    [image, imageName],
+    (autoCrop: boolean) =>
+      runExport(() => {
+        if (!image) return;
+        let canvas = compositeWithMask(image, brushEngine.maskCanvas);
+        if (autoCrop) {
+          const bbox = getContentBBox(canvas);
+          if (bbox) canvas = cropCanvas(canvas, bbox);
+        }
+        downloadDataUrl(canvas.toDataURL('image/png'), `${imageName}_cutout.png`);
+      }),
+    [image, imageName, runExport],
   );
 
   // ---- 模式二：裁剪结果计算（预览 + 导出共用） ----
@@ -96,48 +127,64 @@ export function useExport() {
     [computeCropResults],
   );
 
-  const exportCropAll = useCallback(async () => {
-    const results = computeCropResults();
-    if (results.length === 0) {
-      alert('没有可导出的多边形');
-      return;
-    }
-    await exportResultsAsZip(results, `${imageName}_crops.zip`);
-  }, [computeCropResults, imageName]);
+  const exportCropAll = useCallback(
+    () =>
+      runExport(async () => {
+        const results = computeCropResults();
+        if (results.length === 0) {
+          alert('没有可导出的多边形');
+          return;
+        }
+        await exportResultsAsZip(results, `${imageName}_crops.zip`);
+      }),
+    [computeCropResults, imageName, runExport],
+  );
 
-  // ---- 模式三：反向裁剪导出 ----
-  const exportRetain = useCallback(() => {
-    if (!image) return;
-    const poly = useCropStore.getState().polygons[0];
-    if (!poly || !poly.closed) {
-      alert('请先绘制一个保留区域');
-      return;
-    }
-    let target: { width: number; height: number } | null = null;
-    let maxScale = Infinity;
+  // ---- 模式三：反向裁剪导出（多区域：内部全部保留，外部透明） ----
+  const exportRetain = useCallback(
+    () =>
+      runExport(() => {
+        if (!image) return;
+        const polys = useCropStore
+          .getState()
+          .polygons.filter((p) => p.closed && p.points.length >= 3);
+        if (polys.length === 0) {
+          alert('请先绘制一个保留区域');
+          return;
+        }
 
-    if (retainConfig.mode === 'fixed') {
-      target = { width: retainConfig.width, height: retainConfig.height };
-    } else if (retainConfig.mode === 'bbox') {
-      target = null; // 裁剪到包围盒
-    } else {
-      // origin：保留原图尺寸，多边形外透明
-      const canvas = clipFullImage(image, poly.points);
-      downloadDataUrl(
-        canvas.toDataURL('image/png'),
-        `${imageName}_retain.png`,
-      );
-      return;
-    }
-    const canvas = clipPolygonToCanvas(
-      image,
-      poly.points,
-      target,
-      retainConfig.padding,
-      maxScale,
-    );
-    downloadDataUrl(canvas.toDataURL('image/png'), `${imageName}_retain.png`);
-  }, [image, retainConfig, imageName]);
+        // 全尺寸画布：所有多边形内部保留，其余透明
+        const full = clipManyFull(
+          image,
+          polys.map((p) => p.points),
+        );
+
+        if (retainConfig.mode === 'origin') {
+          // 保留原图尺寸
+          downloadDataUrl(full.toDataURL('image/png'), `${imageName}_retain.png`);
+          return;
+        }
+
+        // 联合包围盒（所有顶点）
+        const bbox = getBBox(polys.flatMap((p) => p.points));
+        const content = cropCanvas(full, bbox);
+
+        let out: HTMLCanvasElement;
+        if (retainConfig.mode === 'bbox') {
+          // 裁剪到包围盒（含内边距）
+          out = padCanvas(content, retainConfig.padding);
+        } else {
+          // fixed：缩放居中到指定尺寸
+          out = fitInto(
+            content,
+            { width: retainConfig.width, height: retainConfig.height },
+            retainConfig.padding,
+          );
+        }
+        downloadDataUrl(out.toDataURL('image/png'), `${imageName}_retain.png`);
+      }),
+    [image, retainConfig, imageName, runExport],
+  );
 
   return {
     exportBrush,
@@ -148,19 +195,55 @@ export function useExport() {
   };
 }
 
-/** 保留原图尺寸：多边形内保留，外部透明 */
-function clipFullImage(
+/** 保留原图尺寸：多个多边形内部并集保留，外部透明 */
+function clipManyFull(
   image: HTMLImageElement,
-  points: { x: number; y: number }[],
+  polygons: { x: number; y: number }[][],
 ): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = image.naturalWidth;
-  c.height = image.naturalHeight;
-  const ctx = c.getContext('2d')!;
+  const c = createCanvas(image.naturalWidth, image.naturalHeight);
+  const ctx = get2d(c);
   ctx.beginPath();
-  points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
-  ctx.closePath();
+  // 多个子路径一次 clip()，构成并集裁剪区域
+  for (const points of polygons) {
+    points.forEach((p, i) =>
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y),
+    );
+    ctx.closePath();
+  }
   ctx.clip();
   ctx.drawImage(image, 0, 0);
   return c;
+}
+
+/** 在内容四周补透明内边距 */
+function padCanvas(content: HTMLCanvasElement, padding: number): HTMLCanvasElement {
+  if (padding <= 0) return content;
+  const out = createCanvas(content.width + padding * 2, content.height + padding * 2);
+  get2d(out).drawImage(content, padding, padding);
+  return out;
+}
+
+/** 将内容等比缩放居中到目标尺寸（不放大超过目标，留出内边距） */
+function fitInto(
+  content: HTMLCanvasElement,
+  target: { width: number; height: number },
+  padding: number,
+): HTMLCanvasElement {
+  const out = createCanvas(target.width, target.height);
+  const ctx = get2d(out);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  const availW = target.width - padding * 2;
+  const availH = target.height - padding * 2;
+  const scale = Math.min(availW / content.width, availH / content.height);
+  const drawW = content.width * scale;
+  const drawH = content.height * scale;
+  ctx.drawImage(
+    content,
+    (target.width - drawW) / 2,
+    (target.height - drawH) / 2,
+    drawW,
+    drawH,
+  );
+  return out;
 }
