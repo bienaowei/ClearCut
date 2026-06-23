@@ -1,12 +1,18 @@
 import { useCallback } from 'react';
 import { useHistoryStore, type HistorySnapshot } from '../stores/historyStore';
 import { useCropStore } from '../stores/cropStore';
+import { useEditorStore } from '../stores/editorStore';
 import { brushEngine } from '../utils/brushEngine';
+import { keepMaskEngine } from '../utils/keepMaskEngine';
 
 /** 把一个快照应用回对应的领域状态 */
 function applySnapshot(snapshot: HistorySnapshot) {
   if (snapshot.kind === 'brush') {
     brushEngine.restore(snapshot.mask);
+  } else if (snapshot.kind === 'sam') {
+    keepMaskEngine.restore(snapshot.keep);
+    useEditorStore.getState().setSamPoints([]);
+    useEditorStore.getState().bumpSam();
   } else {
     useCropStore
       .getState()
@@ -22,6 +28,11 @@ export function useHistory() {
   /** 提交当前画笔遮罩为一个检查点 */
   const commitBrush = useCallback(() => {
     commit({ kind: 'brush', mask: brushEngine.snapshot() });
+  }, [commit]);
+
+  /** 提交当前 SAM 保留蒙版为一个检查点 */
+  const commitSam = useCallback(() => {
+    commit({ kind: 'sam', keep: keepMaskEngine.snapshot() });
   }, [commit]);
 
   /** 提交当前多边形集合为一个检查点 */
@@ -45,5 +56,5 @@ export function useHistory() {
     if (snap) applySnapshot(snap);
   }, [redo]);
 
-  return { commitBrush, commitPolygons, doUndo, doRedo };
+  return { commitBrush, commitSam, commitPolygons, doUndo, doRedo };
 }

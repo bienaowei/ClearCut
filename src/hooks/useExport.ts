@@ -3,6 +3,7 @@ import type { CropResult, PolygonRegion } from '../types';
 import { useEditorStore } from '../stores/editorStore';
 import { useCropStore } from '../stores/cropStore';
 import { brushEngine } from '../utils/brushEngine';
+import { keepMaskEngine } from '../utils/keepMaskEngine';
 import {
   clipPolygonToCanvas,
   compositeWithMask,
@@ -145,19 +146,19 @@ export function useExport() {
     () =>
       runExport(() => {
         if (!image) return;
+
+        // 保留区 = SAM 智能点选蒙版 ∪ 多边形/套索区域
         const polys = useCropStore
           .getState()
           .polygons.filter((p) => p.closed && p.points.length >= 3);
-        if (polys.length === 0) {
-          alert('请先绘制一个保留区域');
+        keepMaskEngine.setPolygons(polys.map((p) => p.points));
+
+        if (!keepMaskEngine.hasAny()) {
+          alert('请先用智能点选选中物品，或绘制一个保留区域');
           return;
         }
 
-        // 全尺寸画布：所有多边形内部保留，其余透明
-        const full = clipManyFull(
-          image,
-          polys.map((p) => p.points),
-        );
+        const full = keepMaskEngine.composite(image);
 
         if (retainConfig.mode === 'origin') {
           // 保留原图尺寸
@@ -165,8 +166,12 @@ export function useExport() {
           return;
         }
 
-        // 联合包围盒（所有顶点）
-        const bbox = getBBox(polys.flatMap((p) => p.points));
+        const bbox = getContentBBox(full) ?? {
+          x: 0,
+          y: 0,
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        };
         const content = cropCanvas(full, bbox);
 
         let out: HTMLCanvasElement;
@@ -193,26 +198,6 @@ export function useExport() {
     exportCropAll,
     exportRetain,
   };
-}
-
-/** 保留原图尺寸：多个多边形内部并集保留，外部透明 */
-function clipManyFull(
-  image: HTMLImageElement,
-  polygons: { x: number; y: number }[][],
-): HTMLCanvasElement {
-  const c = createCanvas(image.naturalWidth, image.naturalHeight);
-  const ctx = get2d(c);
-  ctx.beginPath();
-  // 多个子路径一次 clip()，构成并集裁剪区域
-  for (const points of polygons) {
-    points.forEach((p, i) =>
-      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y),
-    );
-    ctx.closePath();
-  }
-  ctx.clip();
-  ctx.drawImage(image, 0, 0);
-  return c;
 }
 
 /** 在内容四周补透明内边距 */

@@ -6,6 +6,8 @@ import type {
   ExportConfig,
   Point,
   RetainConfig,
+  SamPoint,
+  SamStatus,
 } from '../types';
 
 interface EditorState {
@@ -35,6 +37,14 @@ interface EditorState {
   // 点选裁剪参数：alpha > 阈值 视为实心像素（0~255）
   pickAlphaThreshold: number;
 
+  // SAM 智能点选（retain 模式）
+  samStatus: SamStatus;
+  samError: string | null;
+  /** 当前未确认物体的提示点（图像坐标），用于画布标记 */
+  samPoints: SamPoint[];
+  /** 保留蒙版变更计数：keep 内容变化时自增，驱动面板重算 hasKeep */
+  samVersion: number;
+
   exportConfig: ExportConfig;
   retainConfig: RetainConfig;
 
@@ -54,6 +64,9 @@ interface EditorState {
   setWandTolerance: (tolerance: number) => void;
   setWandContiguous: (contiguous: boolean) => void;
   setPickAlphaThreshold: (threshold: number) => void;
+  setSamStatus: (status: SamStatus, error?: string | null) => void;
+  setSamPoints: (points: SamPoint[]) => void;
+  bumpSam: () => void;
   setExportConfig: (patch: Partial<ExportConfig>) => void;
   setRetainConfig: (patch: Partial<RetainConfig>) => void;
   setExporting: (isExporting: boolean) => void;
@@ -78,18 +91,24 @@ export const useEditorStore = create<EditorState>((set) => ({
 
   pickAlphaThreshold: 10,
 
+  samStatus: 'idle',
+  samError: null,
+  samPoints: [],
+  samVersion: 0,
+
   exportConfig: { mode: 'adaptive', width: 100, height: 100, padding: 0 },
   retainConfig: { mode: 'origin', width: 100, height: 100, padding: 0 },
 
   isExporting: false,
 
   setMode: (mode) =>
-    set((s) => ({
-      mode,
-      // pick 仅在 crop 模式有效，切到其他模式时回退到多边形
-      drawMethod:
-        mode !== 'crop' && s.drawMethod === 'pick' ? 'polygon' : s.drawMethod,
-    })),
+    set((s) => {
+      let drawMethod = s.drawMethod;
+      // pick 仅在 crop 有效、sam 仅在 retain 有效，切到不匹配模式时回退多边形
+      if (mode !== 'crop' && drawMethod === 'pick') drawMethod = 'polygon';
+      if (mode !== 'retain' && drawMethod === 'sam') drawMethod = 'polygon';
+      return { mode, drawMethod };
+    }),
   setDrawMethod: (drawMethod) => set({ drawMethod }),
   setImage: (image, name) =>
     set((s) => ({ image, imageName: name ?? s.imageName })),
@@ -106,6 +125,9 @@ export const useEditorStore = create<EditorState>((set) => ({
   setWandTolerance: (wandTolerance) => set({ wandTolerance }),
   setWandContiguous: (wandContiguous) => set({ wandContiguous }),
   setPickAlphaThreshold: (pickAlphaThreshold) => set({ pickAlphaThreshold }),
+  setSamStatus: (samStatus, samError = null) => set({ samStatus, samError }),
+  setSamPoints: (samPoints) => set({ samPoints }),
+  bumpSam: () => set((s) => ({ samVersion: s.samVersion + 1 })),
   setExportConfig: (patch) =>
     set((s) => ({ exportConfig: { ...s.exportConfig, ...patch } })),
   setRetainConfig: (patch) =>

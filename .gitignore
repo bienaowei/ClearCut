@@ -6,3 +6,6 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 *.log
+
+# 自托管的 SAM 模型权重（用 pnpm sam:download 拉取，不入库）
+public/models

@@ -11,6 +11,8 @@ interface Props {
   hover: Point | null;
   isLasso: boolean;
   commitPolygons: () => void;
+  /** 只读：仅显示已有多边形、不响应交互（SAM 工具激活时用，避免误触发拖拽） */
+  readOnly?: boolean;
 }
 
 const MIN_VERTICES = 3;
@@ -25,6 +27,7 @@ export default function PolygonLayer({
   hover,
   isLasso,
   commitPolygons,
+  readOnly = false,
 }: Props) {
   const zoom = useEditorStore((s) => s.zoom);
   const polygons = useCropStore((s) => s.polygons);
@@ -35,6 +38,24 @@ export default function PolygonLayer({
 
   const handleR = 5 / zoom;
   const midR = 3.5 / zoom;
+
+  // 只读模式：纯展示已有多边形，不接收事件
+  if (readOnly) {
+    return (
+      <Layer listening={false}>
+        {polygons.map((poly) => (
+          <Line
+            key={poly.id}
+            points={flatten(poly.points)}
+            closed
+            fill={poly.color + '33'}
+            stroke={poly.color}
+            strokeWidth={1.5 / zoom}
+          />
+        ))}
+      </Layer>
+    );
+  }
 
   return (
     <Layer>

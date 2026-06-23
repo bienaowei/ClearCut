@@ -7,6 +7,7 @@ import { useCanvasZoom } from '../../hooks/useCanvasZoom';
 import { useBrush } from '../../hooks/useBrush';
 import { usePolygon } from '../../hooks/usePolygon';
 import { usePick } from '../../hooks/usePick';
+import { useSam } from '../../hooks/useSam';
 import { useHistory } from '../../hooks/useHistory';
 import { useCropStore } from '../../stores/cropStore';
 import { brushEngine } from '../../utils/brushEngine';
@@ -14,7 +15,7 @@ import { toleranceToDistance } from '../../utils/magicWand';
 import ImageLayer from './ImageLayer';
 import BrushLayer from './BrushLayer';
 import PolygonLayer from './PolygonLayer';
-import PreviewOverlay from './PreviewOverlay';
+import SamLayer from './SamLayer';
 import Icon from '../common/Icon';
 
 // 魔术棒光标：白描边 + 黑填充，星头在左侧、棒柄朝右下，热点对齐星头(左上)
@@ -50,7 +51,24 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
   const brush = useBrush();
   const polygon = usePolygon();
   const pick = usePick();
+  const sam = useSam();
   const { commitPolygons, commitBrush } = useHistory();
+
+  // SAM 点选：Enter 确认当前物体，Esc 放弃当前未确认选择
+  useEffect(() => {
+    if (mode !== 'retain' || drawMethod !== 'sam') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sam.commit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        sam.cancelPending();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mode, drawMethod, sam]);
 
   // 容器尺寸自适应
   useEffect(() => {
@@ -89,6 +107,10 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
       } else {
         brush.begin(pt);
       }
+    } else if (drawMethod === 'sam') {
+      // SAM 智能点选：单击=正点（加选），Shift+单击=负点（排除）
+      const shift = (e.evt as MouseEvent).shiftKey;
+      void sam.addPoint(pt, shift ? 0 : 1);
     } else if (drawMethod === 'pick') {
       // 点选：点哪个物品就按 alpha 连通域框出哪个，追加一个裁剪区
       if (e.target === e.target.getStage()) {
@@ -117,6 +139,8 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
     setCursor(pt);
     if (mode === 'brush') {
       brush.move(pt);
+    } else if (drawMethod === 'sam') {
+      // SAM 无拖拽绘制，仅更新光标
     } else if (drawMethod === 'lasso') {
       polygon.lassoMove(pt);
     } else {
@@ -227,12 +251,13 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
         ) : (
           <>
             <ImageLayer />
-            {mode === 'retain' && <PreviewOverlay />}
+            {mode === 'retain' && <SamLayer />}
             <PolygonLayer
               draft={polygon.draft}
               hover={polygon.hover}
               isLasso={polygon.isLasso}
               commitPolygons={commitPolygons}
+              readOnly={mode === 'retain' && drawMethod === 'sam'}
             />
           </>
         )}

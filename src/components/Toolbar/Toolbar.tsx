@@ -24,11 +24,12 @@ const DRAW_METHODS: {
   key: DrawMethod;
   label: string;
   icon: IconName;
-  cropOnly?: boolean;
+  only?: EditorMode;
 }[] = [
   { key: 'polygon', label: '多边形', icon: 'polygon' },
   { key: 'lasso', label: '套索', icon: 'lasso' },
-  { key: 'pick', label: '点选', icon: 'target', cropOnly: true },
+  { key: 'pick', label: '点选', icon: 'target', only: 'crop' },
+  { key: 'sam', label: '智能点选', icon: 'wand', only: 'retain' },
 ];
 
 export default function Toolbar({
@@ -101,7 +102,7 @@ export default function Toolbar({
         <>
           <span className="toolbar-divider" />
           <div className="seg-control methods" title="绘制方式">
-            {DRAW_METHODS.filter((m) => !m.cropOnly || mode === 'crop').map((m) => (
+            {DRAW_METHODS.filter((m) => !m.only || m.only === mode).map((m) => (
               <button
                 key={m.key}
                 className={`seg-item${drawMethod === m.key ? ' active' : ''}`}

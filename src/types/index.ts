@@ -32,8 +32,27 @@ export type EditorMode = 'brush' | 'crop' | 'retain';
 /** 画笔模式下的子工具：手动画笔 / 魔术棒一键去背 / 恢复画笔 */
 export type BrushTool = 'brush' | 'wand' | 'restore';
 
-/** 多边形 / 套索 / 点选：crop 与 retain 模式下的绘制方式。pick 仅用于 crop */
-export type DrawMethod = 'polygon' | 'lasso' | 'pick';
+/**
+ * 绘制方式：crop 与 retain 模式下共用。
+ * pick 仅用于 crop；sam（SAM 智能点选）仅用于 retain。
+ */
+export type DrawMethod = 'polygon' | 'lasso' | 'pick' | 'sam';
+
+/** SAM 引擎状态（驱动加载/编码/分割中的 UI 提示） */
+export type SamStatus =
+  | 'idle'
+  | 'loading-model'
+  | 'encoding'
+  | 'ready'
+  | 'segmenting'
+  | 'error';
+
+/** SAM 点击提示点：图像坐标 + 标签（1=正点保留，0=负点排除） */
+export interface SamPoint {
+  x: number;
+  y: number;
+  label: 0 | 1;
+}
 
 /** 模式三反向裁剪的导出方式 */
 export type RetainExportMode = 'origin' | 'bbox' | 'fixed';

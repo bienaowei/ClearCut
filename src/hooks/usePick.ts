@@ -26,7 +26,8 @@ export function usePick() {
       const bbox = floodSelectBBox(image, pt, pickAlphaThreshold);
       // 点到透明处或区域过小则忽略
       if (!bbox || bbox.width < 2 || bbox.height < 2) return;
-      addPolygon(createPolygon(bboxToRectPoints(bbox), true));
+      const name = useCropStore.getState().takeNextLabel() ?? undefined;
+      addPolygon(createPolygon(bboxToRectPoints(bbox), true, name));
       commitPolygons();
     },
     [addPolygon, commitPolygons],
@@ -42,7 +43,10 @@ export function usePick() {
     const minArea = Math.max(64, Math.round(w * h * 0.0002));
     const boxes = segmentAllBBoxes(image, pickAlphaThreshold, minArea);
     if (boxes.length === 0) return 0;
-    const polys = boxes.map((b) => createPolygon(bboxToRectPoints(b), true));
+    const names = useCropStore.getState().takeLabels(boxes.length);
+    const polys = boxes.map((b, i) =>
+      createPolygon(bboxToRectPoints(b), true, names[i]),
+    );
     setPolygons(polys, polys[polys.length - 1].id);
     commitPolygons();
     return boxes.length;

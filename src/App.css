@@ -331,6 +331,76 @@ button.block {
   border-radius: var(--r-pill);
   padding: 1px 8px;
 }
+.batch-rename-btn {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  padding: 2px 8px;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.next-label-row {
+  display: flex;
+  margin-top: 4px;
+}
+.next-label-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  padding: 3px 6px 3px 10px;
+  background: var(--accent-soft, var(--surface-2));
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-pill);
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+.next-label-prefix {
+  color: var(--text-muted);
+}
+.next-label-chip b {
+  font-weight: 600;
+}
+.next-label-val {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.next-label-rest {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.next-label-clear {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px;
+  padding: 0 !important;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+}
+.batch-textarea {
+  width: 100%;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--fs-sm);
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  resize: vertical;
+  min-height: 200px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+.batch-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
 .crop-list {
   display: flex;
   flex-direction: column;

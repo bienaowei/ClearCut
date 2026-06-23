@@ -3,6 +3,8 @@ import { useEditorStore } from '../stores/editorStore';
 import { useCropStore } from '../stores/cropStore';
 import { useHistoryStore } from '../stores/historyStore';
 import { brushEngine } from '../utils/brushEngine';
+import { keepMaskEngine } from '../utils/keepMaskEngine';
+import { samEngine } from '../utils/samEngine';
 import { useAlert } from '../components/common/ConfirmDialog';
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp'];
@@ -78,6 +80,11 @@ export function useImageLoader(
       const img = await loadImageFromBlob(blob);
       setImage(img, name);
       brushEngine.init(img);
+      keepMaskEngine.init(img.naturalWidth, img.naturalHeight);
+      samEngine.resetImage();
+      useEditorStore.getState().setSamPoints([]);
+      useEditorStore.getState().setSamStatus('idle');
+      useEditorStore.getState().bumpSam();
       clearCrop();
       resetHistory({ kind: 'brush', mask: null });
 
@@ -113,6 +120,10 @@ export function useImageLoader(
     releaseCurrentObjectUrl();
     setImage(null, 'image');
     brushEngine.dispose();
+    keepMaskEngine.dispose();
+    samEngine.resetImage();
+    useEditorStore.getState().setSamPoints([]);
+    useEditorStore.getState().setSamStatus('idle');
     clearCrop();
     resetHistory();
     setZoom(1);

@@ -6,6 +6,7 @@ const MAX_STEPS = 30;
 /** 撤销/重做快照：不同模式携带不同 payload */
 export type HistorySnapshot =
   | { kind: 'brush'; mask: ImageData | null }
+  | { kind: 'sam'; keep: ImageData | null }
   | {
       kind: 'polygons';
       polygons: PolygonRegion[];

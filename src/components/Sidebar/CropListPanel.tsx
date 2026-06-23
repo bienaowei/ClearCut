@@ -1,10 +1,46 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ExportSizeMode } from '../../types';
 import { useEditorStore } from '../../stores/editorStore';
-import { useCropStore } from '../../stores/cropStore';
+import { useCropStore, type LabelEntry } from '../../stores/cropStore';
 import { useExport } from '../../hooks/useExport';
 import { usePick } from '../../hooks/usePick';
 import Icon from '../common/Icon';
+
+const BATCH_NAME_PLACEHOLDER = `粘贴 JSON，例如：
+{
+  "chalk": "粉笔",
+  "duster": "板擦",
+  "ruler": "尺子"
+}
+
+或一行一个名字：
+粉笔
+板擦
+尺子`;
+
+function parseBatchNames(raw: string): LabelEntry[] {
+  const text = raw.trim();
+  if (!text) return [];
+  try {
+    const obj = JSON.parse(text);
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      return Object.entries(obj).map(([k, v]) => ({
+        key: k,
+        value: v == null ? undefined : String(v),
+      }));
+    }
+    if (Array.isArray(obj)) {
+      return obj.map((v) => ({ key: String(v) }));
+    }
+  } catch {
+    // fall through to newline mode
+  }
+  return text
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => ({ key: s }));
+}
 
 const SIZE_MODES: { key: ExportSizeMode; label: string }[] = [
   { key: 'fixed', label: '固定' },
@@ -25,6 +61,14 @@ export default function CropListPanel() {
   const updatePolygon = useCropStore((s) => s.updatePolygon);
   const removePolygon = useCropStore((s) => s.removePolygon);
   const reorder = useCropStore((s) => s.reorder);
+  const labels = useCropStore((s) => s.labels);
+  const labelCursor = useCropStore((s) => s.labelCursor);
+  const setLabels = useCropStore((s) => s.setLabels);
+  const clearLabels = useCropStore((s) => s.clearLabels);
+  const takeLabels = useCropStore((s) => s.takeLabels);
+  const nextEntry =
+    labelCursor < labels.length ? labels[labelCursor] : null;
+  const remainingLabels = Math.max(0, labels.length - labelCursor);
 
   const { computeCropResults, exportCropSingle, exportCropAll } = useExport();
   const isExporting = useEditorStore((s) => s.isExporting);
@@ -32,6 +76,26 @@ export default function CropListPanel() {
   const isPick = drawMethod === 'pick';
   const dragIndex = useRef<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchText, setBatchText] = useState('');
+
+  const applyBatchNames = () => {
+    const entries = parseBatchNames(batchText);
+    if (entries.length === 0) {
+      alert('没有解析到名称');
+      return;
+    }
+    // 1) 设为标签队列，游标归零（后续新建多边形会按顺序消费）
+    setLabels(entries);
+    // 2) 立刻按顺序应用到现有多边形，并把游标推进相应步数
+    const used = Math.min(entries.length, polygons.length);
+    for (let i = 0; i < used; i++) {
+      updatePolygon(polygons[i].id, { name: entries[i].key });
+    }
+    if (used > 0) takeLabels(used);
+    setBatchOpen(false);
+    setBatchText('');
+  };
 
   const results = useMemo(
     () => computeCropResults(),
@@ -155,7 +219,37 @@ export default function CropListPanel() {
       <div className="list-header">
         <span>裁剪列表</span>
         <span className="count-badge">{polygons.length}</span>
+        <button
+          className="ghost batch-rename-btn"
+          onClick={() => setBatchOpen(true)}
+          title="粘贴 JSON 设置后续命名顺序"
+        >
+          <Icon name="wand" size={12} />
+          标签预填
+        </button>
       </div>
+      {nextEntry !== null ? (
+        <div
+          className="next-label-row"
+          title={`剩余 ${remainingLabels} 个标签`}
+        >
+          <span className="next-label-chip">
+            <span className="next-label-prefix">下一个</span>
+            <b>{nextEntry.key}</b>
+            {nextEntry.value ? (
+              <span className="next-label-val">（{nextEntry.value}）</span>
+            ) : null}
+            <span className="next-label-rest">· 剩 {remainingLabels}</span>
+            <button
+              className="icon-btn ghost next-label-clear"
+              onClick={clearLabels}
+              title="清空标签队列"
+            >
+              <Icon name="close" size={10} />
+            </button>
+          </span>
+        </div>
+      ) : null}
 
       <div className="crop-list">
         {polygons.length === 0 && (
@@ -231,6 +325,44 @@ export default function CropListPanel() {
           );
         })}
       </div>
+
+      {batchOpen && (
+        <div
+          className="modal-overlay"
+          onClick={() => setBatchOpen(false)}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                <Icon name="wand" size={16} /> 标签预填
+              </h3>
+              <button
+                className="icon-btn ghost"
+                onClick={() => setBatchOpen(false)}
+              >
+                <Icon name="close" />
+              </button>
+            </div>
+            <p className="hint" style={{ marginBottom: 8 }}>
+              立即按顺序命名现有 {polygons.length} 个，剩余标签留给后续新建的物品
+            </p>
+            <textarea
+              className="batch-textarea"
+              value={batchText}
+              onChange={(e) => setBatchText(e.target.value)}
+              placeholder={BATCH_NAME_PLACEHOLDER}
+              rows={12}
+              autoFocus
+            />
+            <div className="confirm-actions" style={{ marginTop: 12 }}>
+              <button onClick={() => setBatchOpen(false)}>取消</button>
+              <button className="primary" onClick={applyBatchNames}>
+                应用
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <button
         className="primary block"
