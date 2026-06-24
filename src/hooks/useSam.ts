@@ -2,8 +2,13 @@ import { useCallback, useRef } from 'react';
 import type { Point, SamPoint } from '../types';
 import { useEditorStore } from '../stores/editorStore';
 import { useHistory } from './useHistory';
-import { samEngine, type SamPrompt } from '../utils/samEngine';
+import {
+  samEngine,
+  WebGpuIncompatibleError,
+  type SamPrompt,
+} from '../utils/samEngine';
 import { keepMaskEngine } from '../utils/keepMaskEngine';
+import { useConfirm } from '../components/common/ConfirmDialog';
 
 /**
  * SAM 智能点选编排：
@@ -16,8 +21,32 @@ export function useSam() {
   const setSamStatus = useEditorStore((s) => s.setSamStatus);
   const setSamPoints = useEditorStore((s) => s.setSamPoints);
   const bumpSam = useEditorStore((s) => s.bumpSam);
+  const confirm = useConfirm();
   /** 当前图是否已写入 SAM 历史基线（用于撤销回到空选择） */
   const baselineRef = useRef(false);
+
+  /**
+   * 统一处理 SAM 错误：若本机 WebGPU 与模型不兼容，弹窗征询后刷新页面
+   * （刷新后会从头以 WASM 兼容模式运行）；否则照常置为错误状态。
+   */
+  const handleSamError = useCallback(
+    async (err: unknown) => {
+      if (err instanceof WebGpuIncompatibleError) {
+        setSamStatus('error', '智能点选需刷新页面后使用');
+        const ok = await confirm({
+          title: '需要刷新页面',
+          message:
+            '当前显卡的 WebGPU 与智能点选模型不兼容。刷新后将自动切换为兼容模式（CPU 运算，速度稍慢但更稳定）。\n\n是否立即刷新？也可稍后手动刷新启用兼容模式。',
+          confirmText: '立即刷新',
+          cancelText: '稍后',
+        });
+        if (ok) location.reload();
+        return;
+      }
+      setSamStatus('error', err instanceof Error ? err.message : String(err));
+    },
+    [confirm, setSamStatus],
+  );
 
   /** 切图时调用：清空提示点、编码缓存与基线标记 */
   const reset = useCallback(() => {
@@ -43,10 +72,10 @@ export function useSam() {
       setSamStatus('ready');
       return true;
     } catch (err) {
-      setSamStatus('error', err instanceof Error ? err.message : String(err));
+      await handleSamError(err);
       return false;
     }
-  }, [setSamStatus]);
+  }, [setSamStatus, handleSamError]);
 
   /** 追加一个提示点并重新分割 */
   const addPoint = useCallback(
@@ -74,10 +103,10 @@ export function useSam() {
         keepMaskEngine.setPending(mask);
         setSamStatus('ready');
       } catch (err) {
-        setSamStatus('error', err instanceof Error ? err.message : String(err));
+        await handleSamError(err);
       }
     },
-    [prepare, setSamPoints, setSamStatus, commitSam],
+    [prepare, setSamPoints, setSamStatus, commitSam, handleSamError],
   );
 
   /** 确认当前物体：合并进保留蒙版，清空提示点，存历史 */

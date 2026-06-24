@@ -63,6 +63,63 @@ function hasWebGPU(): boolean {
   return typeof navigator !== 'undefined' && 'gpu' in navigator;
 }
 
+const SKIP_WEBGPU_KEY = 'sam_skip_webgpu';
+/** 模块级内存 flag，优先于持久化存储，避免某些环境下写入失败导致兜底失效。 */
+let runtimeSkipWebGPU = false;
+
+function readFlag(store: Storage | undefined, key: string): boolean {
+  try {
+    return store?.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeFlag(store: Storage | undefined, key: string) {
+  try {
+    store?.setItem(key, '1');
+  } catch {
+    /* 隐私模式等场景存储不可用，忽略 */
+  }
+}
+
+function shouldSkipWebGPU(): boolean {
+  if (runtimeSkipWebGPU) return true;
+  if (readFlag(globalThis.localStorage, SKIP_WEBGPU_KEY)) {
+    runtimeSkipWebGPU = true;
+    return true;
+  }
+  return false;
+}
+
+function markWebGPUBroken() {
+  runtimeSkipWebGPU = true;
+  writeFlag(globalThis.localStorage, SKIP_WEBGPU_KEY);
+}
+
+/**
+ * 本机 WebGPU 与 SAM 模型不兼容（shader 编译失败）。同页面内无法把已初始化的
+ * WebGPU session 干净替换为 WASM，需整页刷新后从头走 WASM。由 UI 层捕获此错误、
+ * 提示用户后决定是否刷新（刷新后 skip 标记已生效，纯 WASM 运行）。
+ */
+export class WebGpuIncompatibleError extends Error {
+  constructor() {
+    super('本机 WebGPU 与智能点选模型不兼容，需要刷新页面切换到兼容模式');
+    this.name = 'WebGpuIncompatibleError';
+  }
+}
+
+/** 判断是否为 WebGPU 推理期错误（shader 编译/OrtRun 失败等）。 */
+function isWebGpuRuntimeError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    /WebGPU/i.test(msg) ||
+    /ShaderModule/i.test(msg) ||
+    /OrtRun/i.test(msg) ||
+    /compute pipeline/i.test(msg)
+  );
+}
+
 /** 给一个 promise 加超时：超时则 reject，用于兜底卡死的后端初始化 */
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   if (ms <= 0) return p;
@@ -129,8 +186,11 @@ class SamEngine {
     )) as Processor;
 
     // WebGPU 优先、WASM 回退。dtype 各后端取稳妥值，失败再退默认。
+    // 此前在本机推理时 WebGPU shader 编译失败过的话，记忆下来直接走 WASM。
     const attempts: { device: 'webgpu' | 'wasm'; dtype?: string }[] = [];
-    if (hasWebGPU()) attempts.push({ device: 'webgpu', dtype: 'fp16' });
+    if (hasWebGPU() && !shouldSkipWebGPU()) {
+      attempts.push({ device: 'webgpu', dtype: 'fp16' });
+    }
     attempts.push({ device: 'wasm', dtype: 'q8' });
     attempts.push({ device: 'wasm' });
 
@@ -147,14 +207,65 @@ class SamEngine {
           timeoutMs,
         )) as PreTrainedModel;
         this.backend = opt.device;
+
+        // 关键：WebGPU 的 shader 编译失败只在“推理时”暴露，加载阶段看不出来。
+        // 这里用一张小假图跑一遍完整 encode→decode 做探针，若 shader 要炸就在
+        // 此处炸 → 直接落入本循环的 WASM 回退，推理时便不会再遇到 WebGPU 失败。
+        if (opt.device === 'webgpu') {
+          await withTimeout(this.warmup(), timeoutMs);
+        }
         return;
       } catch (err) {
         lastErr = err;
+        // 探针失败时已 backend=webgpu，清掉以免污染后续判断
+        this.model = null;
+        this.backend = null;
+        if (opt.device === 'webgpu') {
+          // 同页面内无法干净替换已初始化的 WebGPU session（encoder 会残留在
+          // WebGPU 上导致后续推理仍报错），记下标记并交给 UI 提示刷新。
+          markWebGPUBroken();
+          console.warn('[SAM] WebGPU 探针失败，需刷新页面切换 WASM：', err);
+          throw new WebGpuIncompatibleError();
+        }
       }
     }
     throw lastErr instanceof Error
       ? lastErr
       : new Error('SAM 模型加载失败');
+  }
+
+  /**
+   * 微型试运行：用一张 64×64 假图跑一遍 vision encoder + mask decoder，
+   * 专门用于在加载阶段提前触发 WebGPU 的 shader 编译，暴露不兼容问题。
+   */
+  private async warmup(): Promise<void> {
+    const tf = this.tf!;
+    const size = 64;
+    const pixels = new Uint8ClampedArray(size * size * 4);
+    pixels.fill(127);
+    const raw = new tf.RawImage(pixels, size, size, 4);
+    const inputs = await this.processor!(raw);
+    const embeddings = await (
+      this.model as unknown as {
+        get_image_embeddings: (i: unknown) => Promise<Record<string, Tensor>>;
+      }
+    ).get_image_embeddings(inputs);
+
+    const input_points = new tf.Tensor(
+      'float32',
+      new Float32Array([size / 2, size / 2]),
+      [1, 1, 1, 2],
+    );
+    const input_labels = new tf.Tensor('int64', new BigInt64Array([1n]), [
+      1, 1, 1,
+    ]);
+    await (this.model as unknown as (
+      args: Record<string, unknown>,
+    ) => Promise<unknown>)({
+      ...embeddings,
+      input_points,
+      input_labels,
+    });
   }
 
   /** 当前图是否已完成编码 */
@@ -207,8 +318,19 @@ class SamEngine {
       await this.encodingPromise;
     } catch (err) {
       this.resetImage();
-      throw err;
+      // 正常情况下加载期探针已拦截 WebGPU 不兼容；万一漏到此处，标记并交给 UI 刷新。
+      throw this.normalizeWebGpuError(err);
     }
+  }
+
+  /** WebGPU 推理期错误 → 标记 + 转成可识别的不兼容错误（供 UI 提示刷新）。 */
+  private normalizeWebGpuError(err: unknown): unknown {
+    if (this.backend === 'webgpu' && isWebGpuRuntimeError(err)) {
+      markWebGPUBroken();
+      console.warn('[SAM] WebGPU 推理失败，需刷新页面切换 WASM：', err);
+      return new WebGpuIncompatibleError();
+    }
+    return err;
   }
 
   /**
@@ -245,13 +367,22 @@ class SamEngine {
     const input_points = new this.tf!.Tensor('float32', pointData, [1, 1, n, 2]);
     const input_labels = new this.tf!.Tensor('int64', labelData, [1, 1, n]);
 
-    const outputs = (await (this.model as unknown as (
-      args: Record<string, unknown>,
-    ) => Promise<{ pred_masks: Tensor; iou_scores: Tensor }>)({
-      ...this.imageEmbeddings,
-      input_points,
-      input_labels,
-    })) as { pred_masks: Tensor; iou_scores: Tensor };
+    const runDecode = async () =>
+      (await (this.model as unknown as (
+        args: Record<string, unknown>,
+      ) => Promise<{ pred_masks: Tensor; iou_scores: Tensor }>)({
+        ...this.imageEmbeddings,
+        input_points,
+        input_labels,
+      })) as { pred_masks: Tensor; iou_scores: Tensor };
+
+    let outputs: { pred_masks: Tensor; iou_scores: Tensor };
+    try {
+      outputs = await runDecode();
+    } catch (err) {
+      // 正常情况下加载期探针已拦截 WebGPU 不兼容；万一漏到此处，标记并交给 UI 刷新。
+      throw this.normalizeWebGpuError(err);
+    }
 
     const masks = await (
       this.processor as unknown as {

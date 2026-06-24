@@ -79,12 +79,12 @@ export default function CropListPanel() {
   const [batchOpen, setBatchOpen] = useState(false);
   const [batchText, setBatchText] = useState('');
 
+  const batchEntries = useMemo(() => parseBatchNames(batchText), [batchText]);
+  const canApplyBatch = batchEntries.length > 0;
+
   const applyBatchNames = () => {
-    const entries = parseBatchNames(batchText);
-    if (entries.length === 0) {
-      alert('没有解析到名称');
-      return;
-    }
+    if (!canApplyBatch) return;
+    const entries = batchEntries;
     // 1) 设为标签队列，游标归零（后续新建多边形会按顺序消费）
     setLabels(entries);
     // 2) 立刻按顺序应用到现有多边形，并把游标推进相应步数
@@ -93,8 +93,8 @@ export default function CropListPanel() {
       updatePolygon(polygons[i].id, { name: entries[i].key });
     }
     if (used > 0) takeLabels(used);
+    // 保留 batchText，方便再次打开查看/修改上次输入的 JSON
     setBatchOpen(false);
-    setBatchText('');
   };
 
   const results = useMemo(
@@ -354,9 +354,21 @@ export default function CropListPanel() {
               rows={12}
               autoFocus
             />
+            {batchText.trim() && !canApplyBatch && (
+              <p
+                className="hint"
+                style={{ color: 'var(--danger, #e5484d)', marginTop: 8 }}
+              >
+                没有解析到名称，请检查输入格式
+              </p>
+            )}
             <div className="confirm-actions" style={{ marginTop: 12 }}>
               <button onClick={() => setBatchOpen(false)}>取消</button>
-              <button className="primary" onClick={applyBatchNames}>
+              <button
+                className="primary"
+                onClick={applyBatchNames}
+                disabled={!canApplyBatch}
+              >
                 应用
               </button>
             </div>

@@ -7,5 +7,8 @@ dist-ssr
 !.vscode/extensions.json
 *.log
 
-# 自托管的 SAM 模型权重（用 pnpm sam:download 拉取，不入库）
-public/models
+# SAM 模型权重：fp32 原版体积大、部署用不到，仅本地保留，不入库
+# fp16 / quantized 版本会随仓库提交，供 Vercel 部署使用
+public/models/**/*.onnx
+!public/models/**/*_fp16.onnx
+!public/models/**/*_quantized.onnx
