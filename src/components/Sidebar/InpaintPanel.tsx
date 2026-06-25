@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { InpaintStatus, SamStatus } from '../../types';
 import { useEditorStore } from '../../stores/editorStore';
 import { useInpaint } from '../../hooks/useInpaint';
@@ -39,6 +40,40 @@ export default function InpaintPanel() {
   const isSam = tool === 'sam';
   const hasMask = inpaintMaskEngine.hasMask();
   const busy = status === 'loading' || status === 'running';
+
+  // 消除耗时计时：只算实际推理（status==='running'）阶段，不含模型下载/加载（'loading'）。
+  // 成功完成后保留「用时 X.Xs」。
+  const startRef = useRef<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [lastDuration, setLastDuration] = useState<number | null>(null);
+  useEffect(() => {
+    if (status === 'running') {
+      if (startRef.current == null) {
+        startRef.current = performance.now();
+        setElapsed(0);
+      }
+      const id = setInterval(() => {
+        if (startRef.current != null) {
+          setElapsed((performance.now() - startRef.current) / 1000);
+        }
+      }, 100);
+      return () => clearInterval(id);
+    }
+    // 离开推理：成功（idle）则记录本次用时；出错则不计。
+    if (startRef.current != null) {
+      const dur = (performance.now() - startRef.current) / 1000;
+      startRef.current = null;
+      setElapsed(0);
+      if (status === 'idle') setLastDuration(dur);
+    }
+  }, [status]);
+
+  const timerText =
+    status === 'running'
+      ? `${elapsed.toFixed(1)}s`
+      : status === 'idle' && lastDuration != null
+        ? `用时 ${lastDuration.toFixed(1)}s`
+        : null;
   const samBusy =
     samStatus === 'loading-model' ||
     samStatus === 'encoding' ||
@@ -87,7 +122,17 @@ export default function InpaintPanel() {
       <div className="card">
         <div className="slider-row">
           <label>状态</label>
-          {busy && <Icon name="loader" size={14} className="spin" />}
+          <span
+            style={{
+              marginLeft: 'auto',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            {timerText && <span className="value-badge">{timerText}</span>}
+            {busy && <Icon name="loader" size={14} className="spin" />}
+          </span>
         </div>
         <p className="hint" style={{ margin: '2px 0 0' }}>
           {status === 'error' ? `失败：${error ?? ''}` : STATUS_TEXT[status]}

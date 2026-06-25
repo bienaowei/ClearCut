@@ -27,6 +27,12 @@ export interface DownloadRequest {
   message: string;
   /** 模型是否已就绪（已就绪则跳过弹窗与下载） */
   isReady: () => boolean;
+  /**
+   * 权重字节是否已存在于持久缓存（可选，异步）。
+   * 返回 true 时跳过「是否下载」征询，直接从缓存加载（弹窗显示「加载中」而非询问）——
+   * 专治刷新后内存丢失、但字节仍在缓存却又被要求重新下载的问题。
+   */
+  isCached?: () => Promise<boolean>;
   /** 真正的下载逻辑；onProgress(0~1) 上报进度，无法获知总量时传 null（不确定态） */
   download: (onProgress: (p: number | null) => void) => Promise<void>;
 }
@@ -44,6 +50,8 @@ export function useDownloadGate(): EnsureDownload {
 interface GateState {
   title: string;
   message: string;
+  /** download：需联网下载，先征询；load：字节已缓存，直接加载、不征询。 */
+  mode: 'download' | 'load';
   phase: 'confirm' | 'downloading';
   progress: number | null;
   download: (onProgress: (p: number | null) => void) => Promise<void>;
@@ -60,14 +68,23 @@ export function DownloadGateProvider({
   /** 当前下载是否已启动，防止 effect 在严格模式下重复触发下载。 */
   const startedRef = useRef(false);
 
-  const ensureDownload = useCallback<EnsureDownload>((req) => {
-    if (req.isReady()) return Promise.resolve(true);
+  const ensureDownload = useCallback<EnsureDownload>(async (req) => {
+    if (req.isReady()) return true;
+    // 字节已持久缓存（仅内存 session 丢失）→ 无需征询，直接加载态从缓存秒读。
+    let cached = false;
+    try {
+      cached = (await req.isCached?.()) ?? false;
+    } catch {
+      cached = false;
+    }
     return new Promise<boolean>((resolve, reject) => {
       startedRef.current = false;
       setState({
         title: req.title,
         message: req.message,
-        phase: 'confirm',
+        mode: cached ? 'load' : 'download',
+        // 已缓存：直接进入下载/加载态（effect 会自动开跑），跳过「是否下载」确认。
+        phase: cached ? 'downloading' : 'confirm',
         progress: null,
         download: req.download,
         resolve,
@@ -125,11 +142,14 @@ interface ModalProps {
 }
 
 function GateModal({ state, onConfirm, onCancel }: ModalProps) {
-  const { title, message, phase, progress } = state;
+  const { title, message, mode, phase, progress } = state;
   const downloading = phase === 'downloading';
+  const loadFromCache = mode === 'load';
   const pct = progress == null ? null : Math.round(progress * 100);
   // 字节已下载完（100%）但模型仍在创建会话 / 预热 → 提示「初始化」，避免像卡死。
   const initializing = pct != null && pct >= 100;
+  // 从缓存加载：标题不再说「下载」，进度文案统一为「加载中」（缓存读取无下载语义）。
+  const heading = loadFromCache ? '加载模型中' : title;
 
   return (
     <div className="modal-overlay" onClick={downloading ? undefined : onCancel}>
@@ -146,24 +166,28 @@ function GateModal({ state, onConfirm, onCancel }: ModalProps) {
             className={downloading ? 'spin' : ''}
           />
         </div>
-        <h3 className="confirm-title">{title}</h3>
+        <h3 className="confirm-title">{heading}</h3>
 
         {downloading ? (
           <div className="download-progress">
             <div className="download-bar">
               <div
-                className={`download-bar-fill${pct == null ? ' indeterminate' : ''}${
-                  initializing ? ' pulsing' : ''
-                }`}
-                style={pct == null ? undefined : { width: `${pct}%` }}
+                className={`download-bar-fill${
+                  pct == null || loadFromCache ? ' indeterminate' : ''
+                }${initializing && !loadFromCache ? ' pulsing' : ''}`}
+                style={
+                  pct == null || loadFromCache ? undefined : { width: `${pct}%` }
+                }
               />
             </div>
             <p className="download-progress-text">
-              {pct == null
-                ? '正在下载…'
-                : initializing
-                  ? '下载完成，正在初始化模型…'
-                  : `下载中 ${pct}%`}
+              {loadFromCache
+                ? '正在从缓存加载模型…'
+                : pct == null
+                  ? '正在下载…'
+                  : initializing
+                    ? '下载完成，正在初始化模型…'
+                    : `下载中 ${pct}%`}
             </p>
           </div>
         ) : (

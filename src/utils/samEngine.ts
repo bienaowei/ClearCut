@@ -200,6 +200,29 @@ class SamEngine {
     return !!this.model && !!this.processor;
   }
 
+  /**
+   * 权重字节是否已存在于 transformers.js 的持久缓存（Cache Storage）。
+   * 用于下载闸门：刷新后内存模型虽丢失（isModelLoaded=false），但若字节仍在缓存，
+   * 则只需从缓存秒读，无需重新下载，故跳过「是否下载」征询、直接加载。
+   *
+   * transformers.js 默认缓存名为 'transformers-cache'（env.cacheKey），本项目未改。
+   * 仅当缓存里存在该模型的 .onnx 权重时才算就绪。caches 不可用（非安全上下文）
+   * 或异常时返回 false（按未缓存处理，照常征询）。
+   */
+  async isModelCached(): Promise<boolean> {
+    if (this.isModelLoaded()) return true;
+    try {
+      if (typeof caches === 'undefined') return false;
+      const cache = await caches.open('transformers-cache');
+      const keys = await cache.keys();
+      return keys.some(
+        (req) => req.url.includes(SAM_MODEL_ID) && req.url.endsWith('.onnx'),
+      );
+    } catch {
+      return false;
+    }
+  }
+
   /** 懒加载模型 + 处理器（只执行一次）。onProgress 上报下载进度。 */
   async ensureModel(onProgress?: ModelProgress): Promise<void> {
     if (this.model && this.processor) return;

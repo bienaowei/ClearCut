@@ -117,6 +117,7 @@ export function useInpaint() {
           message:
             '首次使用智能消除需下载 AI 模型（约 200MB），完成后即可离线使用，无需重复下载。是否开始下载？',
           isReady: () => lamaEngine.isModelReady(),
+          isCached: () => lamaEngine.isModelCached(),
           download: (onProgress) => lamaEngine.preloadModel(onProgress),
         });
         if (!ok) {

@@ -13,6 +13,9 @@
  */
 import { resolveAsset } from './assetSource';
 
+/** 模型权重持久缓存（Cache Storage）名称：worker 写入、主线程探测命中，二者须一致。 */
+export const MODEL_CACHE_NAME = 'clearcut-models-v1';
+
 /** 相对 public/ 的资源路径 */
 const LAMA_MODEL_REL = 'models/lama/lama_fp32.onnx';
 const ORT_WASM_REL = 'ort/ort-wasm-simd-threaded.jsep.wasm';

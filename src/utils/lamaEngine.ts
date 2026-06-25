@@ -1,4 +1,5 @@
 import { createCanvas, get2d } from './canvasUtils';
+import { MODEL_CACHE_NAME, getLamaModelUrl } from './lamaConfig';
 
 /**
  * LaMa inpainting 引擎（主线程侧薄封装），用于「智能消除」：
@@ -81,6 +82,24 @@ class LamaEngine {
   /** 模型是否已下载并初始化完成（用于下载闸门判断是否需要下载）。 */
   isModelReady(): boolean {
     return this.sessionReady;
+  }
+
+  /**
+   * 权重字节是否已存在于持久缓存（Cache Storage）。
+   * 用于下载闸门：刷新后内存 session 虽丢失（isModelReady=false），但若字节仍在缓存，
+   * 则只需从缓存秒读 + 重建会话，无需重新下载，故跳过「是否下载」征询、直接加载。
+   * caches 不可用（非安全上下文）或异常时返回 false（按未缓存处理，照常征询）。
+   */
+  async isModelCached(): Promise<boolean> {
+    if (this.sessionReady) return true;
+    try {
+      if (typeof caches === 'undefined') return false;
+      const cache = await caches.open(MODEL_CACHE_NAME);
+      const url = await getLamaModelUrl();
+      return (await cache.match(url)) !== undefined;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -261,15 +280,14 @@ class LamaEngine {
 }
 
 /**
- * 当前实测：ORT 多线程 WASM 在本工程跑不起来——Emscripten 的 pthread 子 worker
- * 依赖 `importScripts`，而 ES module worker 没有该 API，导致多线程会话加载永久卡死
- * （dev / 生产构建均复现）。因此**默认单线程**，避免每次都白等看门狗超时。
+ * 多线程 WASM 提速：worker 已切 classic（vite.config worker.format:'iife'），
+ * Emscripten 的 pthread 子 worker 可正常 importScripts，故在跨源隔离时开多线程。
  *
- * 若日后把 worker 改为 classic（worker.format:'iife'）让 pthread 可用，把这里改回
- * 跨源隔离判定即可（COOP/COEP 头与看门狗回退逻辑已就绪）。
+ * 安全网：若某些环境仍卡死，主线程看门狗会终止 worker、降回单线程重试，并写下
+ * lama_skip_multithread 标记，之后该浏览器直接走单线程（COOP/COEP 头已就绪）。
  */
 function preferredThreads(): number {
-  const ENABLE_MULTITHREAD = false; // 见上：当前架构下多线程不可用
+  const ENABLE_MULTITHREAD = true; // worker 已切 classic(iife)，pthread 可用
   if (!ENABLE_MULTITHREAD) return 1;
   const isolated =
     typeof globalThis !== 'undefined' &&

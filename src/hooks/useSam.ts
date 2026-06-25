@@ -74,6 +74,7 @@ export function useSam() {
             message:
               '首次使用智能点选需下载 AI 模型，完成后即可离线使用，无需重复下载。是否开始下载？',
             isReady: () => samEngine.isModelLoaded(),
+            isCached: () => samEngine.isModelCached(),
             download: (onProgress) => samEngine.ensureModel(onProgress),
           });
           if (!ok) {
