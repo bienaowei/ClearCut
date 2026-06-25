@@ -7,6 +7,13 @@
       "runtimeArgs": ["dev"],
       "port": 5173,
       "autoPort": true
+    },
+    {
+      "name": "clearcut-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["preview"],
+      "port": 4173,
+      "autoPort": true
     }
   ]
 }

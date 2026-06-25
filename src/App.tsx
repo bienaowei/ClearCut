@@ -8,14 +8,18 @@ import EditorCanvas from './components/Canvas/EditorCanvas';
 import BrushPanel from './components/Sidebar/BrushPanel';
 import CropListPanel from './components/Sidebar/CropListPanel';
 import RetainPanel from './components/Sidebar/RetainPanel';
+import InpaintPanel from './components/Sidebar/InpaintPanel';
 import StatusBar from './components/common/StatusBar';
 import ShortcutHelp from './components/common/ShortcutHelp';
 import { ConfirmProvider } from './components/common/ConfirmDialog';
+import { DownloadGateProvider } from './components/common/DownloadGate';
 
 export default function App() {
   return (
     <ConfirmProvider>
-      <AppInner />
+      <DownloadGateProvider>
+        <AppInner />
+      </DownloadGateProvider>
     </ConfirmProvider>
   );
 }
@@ -43,6 +47,7 @@ function AppInner() {
           {mode === 'brush' && <BrushPanel />}
           {mode === 'crop' && <CropListPanel />}
           {mode === 'retain' && <RetainPanel />}
+          {mode === 'inpaint' && <InpaintPanel />}
         </aside>
       </div>
       <StatusBar />

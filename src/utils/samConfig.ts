@@ -2,7 +2,8 @@
  * SlimSAM 模型配置。
  *
  * 模型来源由构建期环境变量 VITE_SAM_MODEL_SOURCE 决定：
- *  - 'local'（默认）：自托管，从 public/models 加载，运行 `pnpm sam:download` 拉取到本地。
+ *  - 'local'（默认）：自托管，从 public/models 加载（体积小，随 git 上传，不走 CDN，
+ *    以减少云访问次数、不影响已部署功能）。运行 `pnpm sam:download` 拉取到本地。
  *  - 'remote'：HuggingFace 官方 CDN 在线拉取（国内可能慢/连不上）。
  *  - 'mirror'：走 hf-mirror.com 镜像，国内更稳。
  */

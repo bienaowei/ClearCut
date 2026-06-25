@@ -191,12 +191,25 @@ export function useExport() {
     [image, retainConfig, imageName, runExport],
   );
 
+  // ---- 智能消除：导出整图（消除后的原图即为结果） ----
+  const exportInpaint = useCallback(
+    () =>
+      runExport(() => {
+        if (!image) return;
+        const out = createCanvas(image.naturalWidth, image.naturalHeight);
+        get2d(out).drawImage(image, 0, 0);
+        downloadDataUrl(out.toDataURL('image/png'), `${imageName}_cleaned.png`);
+      }),
+    [image, imageName, runExport],
+  );
+
   return {
     exportBrush,
     computeCropResults,
     exportCropSingle,
     exportCropAll,
     exportRetain,
+    exportInpaint,
   };
 }
 

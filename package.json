@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/copy-ort-assets.mjs && tsc -b && vite build",
     "preview": "vite preview",
-    "sam:download": "node scripts/download-sam-model.mjs"
+    "sam:download": "node scripts/download-sam-model.mjs",
+    "lama:download": "node scripts/download-lama-model.mjs",
+    "ort:assets": "node scripts/copy-ort-assets.mjs",
+    "postinstall": "node scripts/copy-ort-assets.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
@@ -15,6 +18,7 @@
     "immer": "^10.1.1",
     "jszip": "^3.10.1",
     "konva": "^9.3.16",
+    "onnxruntime-web": "1.26.0-dev.20260416-b7804b056c",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-konva": "^18.2.10",

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Layer, Image as KonvaImage, Circle } from 'react-konva';
+import { Layer, Image as KonvaImage, Circle, Group } from 'react-konva';
 import type Konva from 'konva';
+import type { Point } from '../../types';
 import { useEditorStore } from '../../stores/editorStore';
 import { brushEngine } from '../../utils/brushEngine';
 import { useThemeColors } from '../../hooks/useThemeColors';
@@ -8,10 +9,10 @@ import { useThemeColors } from '../../hooks/useThemeColors';
 /** 画笔擦除显示层：实时显示擦除结果 + 跟随光标的画笔预览圈 */
 export default function BrushLayer() {
   const image = useEditorStore((s) => s.image);
-  const cursor = useEditorStore((s) => s.cursor);
   const brushTool = useEditorStore((s) => s.brushTool);
   const brushSize = useEditorStore((s) => s.brushSize);
   const wandFlash = useEditorStore((s) => s.wandFlash);
+  const cursorRef = useRef<Konva.Group>(null);
   const [flashProgress, setFlashProgress] = useState<{
     id: number;
     x: number;
@@ -47,6 +48,26 @@ export default function BrushLayer() {
     return () => {
       brushEngine.onChange = null;
     };
+  }, []);
+
+  // 光标圈走命令式更新：直接移动 Konva 节点，避免每次 mousemove 触发 React 重渲染
+  useEffect(() => {
+    let last: Point | null = null;
+    const apply = (cursor: Point | null) => {
+      if (cursor === last) return;
+      last = cursor;
+      const g = cursorRef.current;
+      if (!g) return;
+      if (cursor) {
+        g.position(cursor);
+        g.visible(true);
+      } else {
+        g.visible(false);
+      }
+      g.getLayer()?.batchDraw();
+    };
+    apply(useEditorStore.getState().cursor);
+    return useEditorStore.subscribe((s) => apply(s.cursor));
   }, []);
 
   if (!image || !brushEngine.displayCanvas) return null;
@@ -100,14 +121,12 @@ export default function BrushLayer() {
             </>
           );
         })()}
-        {cursor && (brushTool === 'brush' || brushTool === 'restore') && (() => {
+        {(brushTool === 'brush' || brushTool === 'restore') && (() => {
           const ringColor = brushTool === 'restore' ? '#22c55e' : colors.brush;
           return (
-            <>
+            <Group ref={cursorRef} visible={false}>
               {/* 深色衬底，保证浅色背景上也能看清 */}
               <Circle
-                x={cursor.x}
-                y={cursor.y}
                 radius={brushSize / 2}
                 stroke="rgba(0,0,0,0.55)"
                 strokeWidth={3}
@@ -115,8 +134,6 @@ export default function BrushLayer() {
               />
               {/* 亮色虚线圈 */}
               <Circle
-                x={cursor.x}
-                y={cursor.y}
                 radius={brushSize / 2}
                 stroke={ringColor}
                 strokeWidth={1.5}
@@ -125,15 +142,13 @@ export default function BrushLayer() {
               />
               {/* 中心点 */}
               <Circle
-                x={cursor.x}
-                y={cursor.y}
                 radius={1.5}
                 fill={ringColor}
                 stroke="rgba(0,0,0,0.55)"
                 strokeWidth={1}
                 strokeScaleEnabled={false}
               />
-            </>
+            </Group>
           );
         })()}
       </Layer>

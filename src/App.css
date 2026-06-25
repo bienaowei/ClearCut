@@ -640,6 +640,56 @@ button.block {
   height: 38px;
 }
 
+/* ---------- 模型下载进度条 ---------- */
+.download-progress {
+  width: 100%;
+  margin-bottom: var(--sp-2);
+}
+.download-bar {
+  width: 100%;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.download-bar-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  width: 0;
+  transition: width 0.2s var(--ease);
+}
+.download-bar-fill.indeterminate {
+  width: 40%;
+  animation: download-indeterminate 1.1s ease-in-out infinite;
+}
+@keyframes download-indeterminate {
+  0% {
+    margin-left: -40%;
+  }
+  100% {
+    margin-left: 100%;
+  }
+}
+/* 字节下载完、模型初始化中：保持满格并呼吸闪烁，表示仍在工作。 */
+.download-bar-fill.pulsing {
+  animation: download-pulse 1.2s ease-in-out infinite;
+}
+@keyframes download-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.download-progress-text {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-base);
+  color: var(--text-muted);
+}
+
 .modal-header {
   display: flex;
   align-items: center;

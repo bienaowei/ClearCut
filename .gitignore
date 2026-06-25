@@ -6,9 +6,15 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 *.log
+.env.production
 
-# SAM 模型权重：fp32 原版体积大、部署用不到，仅本地保留，不入库
-# fp16 / quantized 版本会随仓库提交，供 Vercel 部署使用
+# 模型权重(.onnx)：默认不入库。
+#  - SAM 的 fp16 / quantized 版本体积小，例外放行，随仓库提交供部署自托管。
+#  - SAM fp32 原版、LaMa fp32(198MB) 体积大，不入库；LaMa 走 CDN(VITE_ASSET_CDN) 兜底。
 public/models/**/*.onnx
 !public/models/**/*_fp16.onnx
 !public/models/**/*_quantized.onnx
+
+# ORT 运行时 wasm(共 ~74MB)：由 scripts/copy-ort-assets.mjs 从 node_modules 拷贝，
+# 不入库；部署时走 CDN(VITE_ASSET_CDN) 兜底。
+public/ort/

@@ -9,6 +9,7 @@ import {
 } from '../utils/samEngine';
 import { keepMaskEngine } from '../utils/keepMaskEngine';
 import { useConfirm } from '../components/common/ConfirmDialog';
+import { useDownloadGate } from '../components/common/DownloadGate';
 
 /**
  * SAM 智能点选编排：
@@ -22,6 +23,7 @@ export function useSam() {
   const setSamPoints = useEditorStore((s) => s.setSamPoints);
   const bumpSam = useEditorStore((s) => s.bumpSam);
   const confirm = useConfirm();
+  const ensureDownload = useDownloadGate();
   /** 当前图是否已写入 SAM 历史基线（用于撤销回到空选择） */
   const baselineRef = useRef(false);
 
@@ -64,8 +66,21 @@ export function useSam() {
     if (!image) return false;
     try {
       if (!samEngine.isEncoded(image)) {
-        setSamStatus('loading-model');
-        await samEngine.ensureModel();
+        // 首次使用需下载模型：弹窗征询，用户点「确定」后才开始下载并显示进度条。
+        if (!samEngine.isModelLoaded()) {
+          setSamStatus('loading-model');
+          const ok = await ensureDownload({
+            title: '下载智能点选模型',
+            message:
+              '首次使用智能点选需下载 AI 模型，完成后即可离线使用，无需重复下载。是否开始下载？',
+            isReady: () => samEngine.isModelLoaded(),
+            download: (onProgress) => samEngine.ensureModel(onProgress),
+          });
+          if (!ok) {
+            setSamStatus('idle');
+            return false;
+          }
+        }
         setSamStatus('encoding');
         await samEngine.setImage(image, image);
       }
@@ -75,7 +90,7 @@ export function useSam() {
       await handleSamError(err);
       return false;
     }
-  }, [setSamStatus, handleSamError]);
+  }, [setSamStatus, handleSamError, ensureDownload]);
 
   /** 追加一个提示点并重新分割 */
   const addPoint = useCallback(

@@ -113,6 +113,36 @@ ClearCut 提供三种编辑模式，通过顶部工具栏切换：
 > ```
 > 也可改用在线 CDN：设环境变量 `VITE_SAM_MODEL_SOURCE=remote`（官方）或 `mirror`（镜像），此时无需下载、但运行时依赖外网。
 
+### 大资源加载与部署（ORT / LaMa 走 CDN）
+
+体积大的资源不入库（见 `.gitignore`），采用 **本地优先、CDN 兜底**：本地 `public/` 下有就用本地，没有则自动从 CDN 拉同名路径。
+
+| 资源 | 大小 | 策略 |
+| --- | --- | --- |
+| `public/models/Xenova/`（SAM） | 小 | 纯本地，随 git 上传，**不走 CDN** |
+| `public/ort/`（ORT wasm） | ~74MB | 本地优先 + CDN 兜底 |
+| `public/models/lama/lama_fp32.onnx`（LaMa） | 198MB | 本地优先 + CDN 兜底 |
+
+本地拉取大资源（开发/验证用）：
+```bash
+pnpm ort:assets     # 从 node_modules 拷 ORT wasm 到 public/ort（postinstall 已自动执行）
+pnpm lama:download  # 下载 LaMa fp32 权重到 public/models/lama
+```
+
+**部署到 CDN：** 把 `public/ort/`、`public/models/lama/` 整目录上传到 CDN（保持目录结构一致），并设环境变量：
+```env
+# CDN 根地址，结构与 public/ 一致，末尾保留斜杠
+VITE_ASSET_CDN=https://你的域名/ClearCut/
+```
+> 单独覆盖某一项可用 `VITE_ORT_WASM_URL` / `VITE_LAMA_MODEL_URL`（完整 URL，优先级最高）。
+
+> ⚠️ **跨源头要求**：本应用启用了 COOP/COEP(`require-corp`) 以开多线程 WASM。CDN 上这些文件**必须**返回以下响应头，否则会被浏览器拦截：
+> ```
+> Cross-Origin-Resource-Policy: cross-origin
+> Access-Control-Allow-Origin: *
+> ```
+> SAM 因同源本地加载，不受此限制。
+
 ## 通用功能
 
 ### 图片加载

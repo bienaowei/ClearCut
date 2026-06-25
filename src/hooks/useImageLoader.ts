@@ -5,6 +5,8 @@ import { useHistoryStore } from '../stores/historyStore';
 import { brushEngine } from '../utils/brushEngine';
 import { keepMaskEngine } from '../utils/keepMaskEngine';
 import { samEngine } from '../utils/samEngine';
+import { inpaintMaskEngine } from '../utils/inpaintMaskEngine';
+import { resetEraseHistory } from './useInpaint';
 import { useAlert } from '../components/common/ConfirmDialog';
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp'];
@@ -81,10 +83,15 @@ export function useImageLoader(
       setImage(img, name);
       brushEngine.init(img);
       keepMaskEngine.init(img.naturalWidth, img.naturalHeight);
+      inpaintMaskEngine.init(img.naturalWidth, img.naturalHeight);
+      resetEraseHistory();
       samEngine.resetImage();
       useEditorStore.getState().setSamPoints([]);
       useEditorStore.getState().setSamStatus('idle');
+      useEditorStore.getState().setInpaintStatus('idle');
       useEditorStore.getState().bumpSam();
+      useEditorStore.getState().bumpInpaintMask();
+      useEditorStore.getState().bumpInpaintHist();
       clearCrop();
       resetHistory({ kind: 'brush', mask: null });
 
@@ -121,9 +128,12 @@ export function useImageLoader(
     setImage(null, 'image');
     brushEngine.dispose();
     keepMaskEngine.dispose();
+    inpaintMaskEngine.dispose();
+    resetEraseHistory();
     samEngine.resetImage();
     useEditorStore.getState().setSamPoints([]);
     useEditorStore.getState().setSamStatus('idle');
+    useEditorStore.getState().setInpaintStatus('idle');
     clearCrop();
     resetHistory();
     setZoom(1);

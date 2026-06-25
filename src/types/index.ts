@@ -27,7 +27,13 @@ export interface CropResult {
   height: number;
 }
 
-export type EditorMode = 'brush' | 'crop' | 'retain';
+export type EditorMode = 'brush' | 'crop' | 'retain' | 'inpaint';
+
+/** 智能消除（擦除 + 背景填充）引擎状态 */
+export type InpaintStatus = 'idle' | 'loading' | 'running' | 'error';
+
+/** 智能消除的选区工具：手动画笔涂抹 / SAM 智能点选 */
+export type InpaintTool = 'brush' | 'sam';
 
 /** 画笔模式下的子工具：手动画笔 / 魔术棒一键去背 / 恢复画笔 */
 export type BrushTool = 'brush' | 'wand' | 'restore';

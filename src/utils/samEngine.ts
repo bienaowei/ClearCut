@@ -35,6 +35,35 @@ export interface SamMaskResult {
   score: number;
 }
 
+/** 下载进度回调：p 为 0~1；无法获知总量时传 null（不确定态）。 */
+export type ModelProgress = (p: number | null) => void;
+
+/**
+ * 把 transformers.js 的逐文件进度事件聚合成总进度（0~1）。
+ * 事件形如 { status:'progress', file, loaded, total }，按文件累加字节数。
+ */
+function makeProgressCallback(onProgress?: ModelProgress) {
+  if (!onProgress) return undefined;
+  const files = new Map<string, { loaded: number; total: number }>();
+  return (data: {
+    status?: string;
+    file?: string;
+    loaded?: number;
+    total?: number;
+  }) => {
+    if (data.file && typeof data.loaded === 'number') {
+      files.set(data.file, { loaded: data.loaded, total: data.total ?? 0 });
+    }
+    let loaded = 0;
+    let total = 0;
+    for (const f of files.values()) {
+      loaded += f.loaded;
+      total += f.total;
+    }
+    onProgress(total > 0 ? Math.min(1, loaded / total) : null);
+  };
+}
+
 function configureEnv(tf: TF) {
   const env = tf.env;
   // 单线程 WASM：避免依赖 SharedArrayBuffer（无需 COOP/COEP 响应头）。
@@ -47,6 +76,7 @@ function configureEnv(tf: TF) {
   }
 
   if (SAM_MODEL_SOURCE === 'local') {
+    // SAM 体积小，随 git 上传、自托管，不走 CDN。
     env.allowLocalModels = true;
     env.allowRemoteModels = false;
     env.localModelPath = SAM_LOCAL_MODEL_PATH;
@@ -165,11 +195,16 @@ class SamEngine {
     return this.backend;
   }
 
-  /** 懒加载模型 + 处理器（只执行一次）。 */
-  async ensureModel(): Promise<void> {
+  /** 模型与处理器是否均已加载完成（用于下载闸门判断是否需要下载）。 */
+  isModelLoaded(): boolean {
+    return !!this.model && !!this.processor;
+  }
+
+  /** 懒加载模型 + 处理器（只执行一次）。onProgress 上报下载进度。 */
+  async ensureModel(onProgress?: ModelProgress): Promise<void> {
     if (this.model && this.processor) return;
     if (this.loadingPromise) return this.loadingPromise;
-    this.loadingPromise = this.loadModel().catch((err) => {
+    this.loadingPromise = this.loadModel(onProgress).catch((err) => {
       // 失败后允许重试
       this.loadingPromise = null;
       throw err;
@@ -177,13 +212,14 @@ class SamEngine {
     return this.loadingPromise;
   }
 
-  private async loadModel(): Promise<void> {
+  private async loadModel(onProgress?: ModelProgress): Promise<void> {
     const tf = await loadLib();
     this.tf = tf;
     configureEnv(tf);
-    this.processor = (await tf.AutoProcessor.from_pretrained(
-      SAM_MODEL_ID,
-    )) as Processor;
+    const progress_callback = makeProgressCallback(onProgress);
+    this.processor = (await tf.AutoProcessor.from_pretrained(SAM_MODEL_ID, {
+      ...(progress_callback ? { progress_callback } : {}),
+    })) as Processor;
 
     // WebGPU 优先、WASM 回退。dtype 各后端取稳妥值，失败再退默认。
     // 此前在本机推理时 WebGPU shader 编译失败过的话，记忆下来直接走 WASM。
@@ -203,6 +239,7 @@ class SamEngine {
           tf.AutoModel.from_pretrained(SAM_MODEL_ID, {
             device: opt.device,
             ...(opt.dtype ? { dtype: opt.dtype as never } : {}),
+            ...(progress_callback ? { progress_callback } : {}),
           }) as Promise<PreTrainedModel>,
           timeoutMs,
         )) as PreTrainedModel;

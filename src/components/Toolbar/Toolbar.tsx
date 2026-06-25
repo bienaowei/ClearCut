@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import type { DrawMethod, EditorMode } from '../../types';
+import type { DrawMethod, EditorMode, InpaintTool } from '../../types';
 import { useEditorStore } from '../../stores/editorStore';
 import { useHistoryStore } from '../../stores/historyStore';
 import { useThemeStore } from '../../stores/themeStore';
@@ -18,6 +18,7 @@ const MODES: { key: EditorMode; label: string; icon: IconName }[] = [
   { key: 'brush', label: '画笔擦除', icon: 'brush' },
   { key: 'crop', label: '裁剪', icon: 'scissors' },
   { key: 'retain', label: '保留', icon: 'dimensions' },
+  { key: 'inpaint', label: '智能消除', icon: 'eraser' },
 ];
 
 const DRAW_METHODS: {
@@ -32,6 +33,12 @@ const DRAW_METHODS: {
   { key: 'sam', label: '智能点选', icon: 'wand', only: 'retain' },
 ];
 
+/** 智能消除的选区工具：手动画笔 / SAM 智能点选 */
+const INPAINT_TOOLS: { key: InpaintTool; label: string; icon: IconName }[] = [
+  { key: 'brush', label: '画笔', icon: 'brush' },
+  { key: 'sam', label: '智能点选', icon: 'wand' },
+];
+
 export default function Toolbar({
   onPickFile,
   onClearImage,
@@ -41,6 +48,8 @@ export default function Toolbar({
   const setMode = useEditorStore((s) => s.setMode);
   const drawMethod = useEditorStore((s) => s.drawMethod);
   const setDrawMethod = useEditorStore((s) => s.setDrawMethod);
+  const inpaintTool = useEditorStore((s) => s.inpaintTool);
+  const setInpaintTool = useEditorStore((s) => s.setInpaintTool);
   const image = useEditorStore((s) => s.image);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -48,7 +57,8 @@ export default function Toolbar({
   const canUndo = useHistoryStore((s) => s.canUndo());
   const canRedo = useHistoryStore((s) => s.canRedo());
 
-  const { exportBrush, exportCropAll, exportRetain } = useExport();
+  const { exportBrush, exportCropAll, exportRetain, exportInpaint } =
+    useExport();
   const isExporting = useEditorStore((s) => s.isExporting);
   const confirm = useConfirm();
 
@@ -69,10 +79,12 @@ export default function Toolbar({
   const handleExport = () => {
     if (mode === 'brush') void exportBrush(false);
     else if (mode === 'crop') void exportCropAll();
+    else if (mode === 'inpaint') void exportInpaint();
     else void exportRetain();
   };
 
-  const exportLabel = mode === 'crop' ? '全部导出' : '导出 PNG';
+  const exportLabel =
+    mode === 'crop' ? '全部导出' : mode === 'inpaint' ? '导出整图' : '导出 PNG';
 
   return (
     <div className="toolbar">
@@ -98,7 +110,7 @@ export default function Toolbar({
         ))}
       </div>
 
-      {mode !== 'brush' && (
+      {(mode === 'crop' || mode === 'retain') && (
         <>
           <span className="toolbar-divider" />
           <div className="seg-control methods" title="绘制方式">
@@ -110,6 +122,24 @@ export default function Toolbar({
               >
                 <Icon name={m.icon} size={15} />
                 {m.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {mode === 'inpaint' && (
+        <>
+          <span className="toolbar-divider" />
+          <div className="seg-control methods" title="选区方式">
+            {INPAINT_TOOLS.map((t) => (
+              <button
+                key={t.key}
+                className={`seg-item${inpaintTool === t.key ? ' active' : ''}`}
+                onClick={() => setInpaintTool(t.key)}
+              >
+                <Icon name={t.icon} size={15} />
+                {t.label}
               </button>
             ))}
           </div>

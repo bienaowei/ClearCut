@@ -4,6 +4,8 @@ import type {
   DrawMethod,
   EditorMode,
   ExportConfig,
+  InpaintStatus,
+  InpaintTool,
   Point,
   RetainConfig,
   SamPoint,
@@ -45,6 +47,18 @@ interface EditorState {
   /** 保留蒙版变更计数：keep 内容变化时自增，驱动面板重算 hasKeep */
   samVersion: number;
 
+  // 智能消除（inpaint 模式）
+  /** 选区工具：手动画笔 / SAM 智能点选 */
+  inpaintTool: InpaintTool;
+  inpaintStatus: InpaintStatus;
+  inpaintError: string | null;
+  /** 涂抹掩码变更计数：掩码变化时自增，驱动面板重算 hasMask */
+  inpaintMaskVersion: number;
+  /** 消除历史变更计数：图片被替换/撤销时自增，驱动面板重算可否撤销 */
+  inpaintHistVersion: number;
+  /** 智能消除画笔直径（原图像素） */
+  inpaintBrushSize: number;
+
   exportConfig: ExportConfig;
   retainConfig: RetainConfig;
 
@@ -67,6 +81,11 @@ interface EditorState {
   setSamStatus: (status: SamStatus, error?: string | null) => void;
   setSamPoints: (points: SamPoint[]) => void;
   bumpSam: () => void;
+  setInpaintTool: (tool: InpaintTool) => void;
+  setInpaintStatus: (status: InpaintStatus, error?: string | null) => void;
+  setInpaintBrushSize: (size: number) => void;
+  bumpInpaintMask: () => void;
+  bumpInpaintHist: () => void;
   setExportConfig: (patch: Partial<ExportConfig>) => void;
   setRetainConfig: (patch: Partial<RetainConfig>) => void;
   setExporting: (isExporting: boolean) => void;
@@ -95,6 +114,13 @@ export const useEditorStore = create<EditorState>((set) => ({
   samError: null,
   samPoints: [],
   samVersion: 0,
+
+  inpaintTool: 'brush',
+  inpaintStatus: 'idle',
+  inpaintError: null,
+  inpaintMaskVersion: 0,
+  inpaintHistVersion: 0,
+  inpaintBrushSize: 40,
 
   exportConfig: { mode: 'adaptive', width: 100, height: 100, padding: 0 },
   retainConfig: { mode: 'origin', width: 100, height: 100, padding: 0 },
@@ -128,6 +154,14 @@ export const useEditorStore = create<EditorState>((set) => ({
   setSamStatus: (samStatus, samError = null) => set({ samStatus, samError }),
   setSamPoints: (samPoints) => set({ samPoints }),
   bumpSam: () => set((s) => ({ samVersion: s.samVersion + 1 })),
+  setInpaintTool: (inpaintTool) => set({ inpaintTool }),
+  setInpaintStatus: (inpaintStatus, inpaintError = null) =>
+    set({ inpaintStatus, inpaintError }),
+  setInpaintBrushSize: (inpaintBrushSize) => set({ inpaintBrushSize }),
+  bumpInpaintMask: () =>
+    set((s) => ({ inpaintMaskVersion: s.inpaintMaskVersion + 1 })),
+  bumpInpaintHist: () =>
+    set((s) => ({ inpaintHistVersion: s.inpaintHistVersion + 1 })),
   setExportConfig: (patch) =>
     set((s) => ({ exportConfig: { ...s.exportConfig, ...patch } })),
   setRetainConfig: (patch) =>

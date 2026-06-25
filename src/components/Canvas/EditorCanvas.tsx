@@ -5,6 +5,8 @@ import type { Point } from '../../types';
 import { useEditorStore } from '../../stores/editorStore';
 import { useCanvasZoom } from '../../hooks/useCanvasZoom';
 import { useBrush } from '../../hooks/useBrush';
+import { useInpaintBrush } from '../../hooks/useInpaintBrush';
+import { useInpaint } from '../../hooks/useInpaint';
 import { usePolygon } from '../../hooks/usePolygon';
 import { usePick } from '../../hooks/usePick';
 import { useSam } from '../../hooks/useSam';
@@ -14,6 +16,7 @@ import { brushEngine } from '../../utils/brushEngine';
 import { toleranceToDistance } from '../../utils/magicWand';
 import ImageLayer from './ImageLayer';
 import BrushLayer from './BrushLayer';
+import InpaintLayer from './InpaintLayer';
 import PolygonLayer from './PolygonLayer';
 import SamLayer from './SamLayer';
 import Icon from '../common/Icon';
@@ -31,6 +34,7 @@ interface Props {
 export default function EditorCanvas({ containerRef, onDropFile }: Props) {
   const mode = useEditorStore((s) => s.mode);
   const brushTool = useEditorStore((s) => s.brushTool);
+  const inpaintTool = useEditorStore((s) => s.inpaintTool);
   const wandTolerance = useEditorStore((s) => s.wandTolerance);
   const wandContiguous = useEditorStore((s) => s.wandContiguous);
   const drawMethod = useEditorStore((s) => s.drawMethod);
@@ -49,6 +53,8 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
 
   const { spaceDown, handleWheel } = useCanvasZoom();
   const brush = useBrush();
+  const inpaintBrush = useInpaintBrush();
+  const inpaint = useInpaint();
   const polygon = usePolygon();
   const pick = usePick();
   const sam = useSam();
@@ -107,6 +113,9 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
       } else {
         brush.begin(pt);
       }
+    } else if (mode === 'inpaint') {
+      if (inpaintTool === 'sam') void inpaint.samClick(pt);
+      else inpaintBrush.begin(pt);
     } else if (drawMethod === 'sam') {
       // SAM 智能点选：单击=正点（加选），Shift+单击=负点（排除）
       const shift = (e.evt as MouseEvent).shiftKey;
@@ -132,13 +141,20 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
     }
   };
 
-  const onPointerMove = () => {
+  // pointermove 合并到每帧一次：高刷新率鼠标每秒可触发上千次事件，
+  // 不节流会让 setCursor / batchDraw 压垮主线程导致掉帧。rAF 把每帧多余的
+  // 移动合并成一次，绘制连续性由 paintSegment 的两点插值保证，不会断笔。
+  const moveRaf = useRef(0);
+  const handleMoveFrame = () => {
+    moveRaf.current = 0;
     if (!image) return;
     const pt = getImagePoint();
     if (!pt) return;
     setCursor(pt);
     if (mode === 'brush') {
       brush.move(pt);
+    } else if (mode === 'inpaint') {
+      if (inpaintTool === 'brush') inpaintBrush.move(pt);
     } else if (drawMethod === 'sam') {
       // SAM 无拖拽绘制，仅更新光标
     } else if (drawMethod === 'lasso') {
@@ -148,9 +164,24 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
     }
   };
 
+  const onPointerMove = () => {
+    if (!image) return;
+    // 已有待处理帧则丢弃这次，下一帧用 Konva 记录的最新指针位置补上
+    if (moveRaf.current) return;
+    moveRaf.current = requestAnimationFrame(handleMoveFrame);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (moveRaf.current) cancelAnimationFrame(moveRaf.current);
+    };
+  }, []);
+
   const onPointerUp = () => {
     if (mode === 'brush') brush.end();
-    else if (drawMethod === 'lasso') polygon.lassoEnd();
+    else if (mode === 'inpaint') {
+      if (inpaintTool === 'brush') inpaintBrush.end();
+    } else if (drawMethod === 'lasso') polygon.lassoEnd();
   };
 
   const onDblClick = () => {
@@ -170,6 +201,10 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
           ? 'none'
           : mode === 'brush' && brushTool === 'wand'
           ? WAND_CURSOR
+          : mode === 'inpaint'
+          ? inpaintTool === 'brush'
+            ? 'none'
+            : 'crosshair'
           : 'crosshair',
       }}
       data-dragover={dragOver ? 'true' : undefined}
@@ -248,6 +283,8 @@ export default function EditorCanvas({ containerRef, onDropFile }: Props) {
       >
         {mode === 'brush' ? (
           <BrushLayer />
+        ) : mode === 'inpaint' ? (
+          <InpaintLayer />
         ) : (
           <>
             <ImageLayer />
