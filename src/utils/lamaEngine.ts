@@ -20,9 +20,9 @@ export type LamaDownloadProgress = (p: number | null) => void;
 
 /**
  * 首个任务加载（含 208MB 权重）的看门狗超时：超过则判定多线程卡死并回退单线程。
- * 本地正常初始化约 5s，留足余量取 30s：既能容忍慢网络/慢机器，又不至于卡死时白等太久。
+ * 本地正常初始化约 5s，留足余量取 15s：既能容忍慢机器，又不至于卡死时白等太久。
  */
-const LOAD_WATCHDOG_MS = 30_000;
+const LOAD_WATCHDOG_MS = 15_000;
 
 /**
  * 多线程曾卡死的浏览器记忆标记（仿 SAM 的 sam_skip_webgpu）。
