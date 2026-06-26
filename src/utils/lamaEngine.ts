@@ -18,8 +18,11 @@ export type LamaProgress = (phase: 'loading' | 'running') => void;
 /** 模型下载进度回调：p 为 0~1；无法获知总量时传 null（不确定态）。 */
 export type LamaDownloadProgress = (p: number | null) => void;
 
-/** 首个任务加载（含 208MB 权重）的看门狗超时：超过则判定多线程卡死并回退单线程。 */
-const LOAD_WATCHDOG_MS = 50_000;
+/**
+ * 首个任务加载（含 208MB 权重）的看门狗超时：超过则判定多线程卡死并回退单线程。
+ * 本地正常初始化约 5s，留足余量取 30s：既能容忍慢网络/慢机器，又不至于卡死时白等太久。
+ */
+const LOAD_WATCHDOG_MS = 30_000;
 
 /**
  * 多线程曾卡死的浏览器记忆标记（仿 SAM 的 sam_skip_webgpu）。
@@ -105,13 +108,36 @@ class LamaEngine {
   /**
    * 预加载模型：仅下载权重并初始化推理会话（带下载进度），不执行推理。
    * 供「用户点确定后才开始下载」的闸门调用；完成后 run() 可直接推理。
+   *
+   * 与 dispatch 一样，首次多线程加载时带看门狗：超时判定 pthread 卡死后
+   * 终止 worker、降为单线程重试，避免永久挂起。
    */
   preloadModel(onProgress?: LamaDownloadProgress): Promise<void> {
     if (this.sessionReady) return Promise.resolve();
     return new Promise<void>((resolve, reject) => {
       const worker = this.ensureWorker();
       const id = ++this.seq;
-      this.preloads.set(id, { onProgress, resolve, reject });
+      const guarded = !this.sessionReady && this.threads > 1;
+      let watchdog: ReturnType<typeof setTimeout> | null = null;
+      if (guarded) {
+        watchdog = setTimeout(() => {
+          console.warn('[LaMa] 预加载多线程超时，回退单线程重试');
+          markSkipMultithread();
+          this.preloads.delete(id);
+          this.terminateWorker();
+          this.threads = 1;
+          this.preloadModel(onProgress).then(resolve, reject);
+        }, LOAD_WATCHDOG_MS);
+      }
+      const wrappedResolve = () => {
+        if (watchdog) clearTimeout(watchdog);
+        resolve();
+      };
+      const wrappedReject = (err: Error) => {
+        if (watchdog) clearTimeout(watchdog);
+        reject(err);
+      };
+      this.preloads.set(id, { onProgress, resolve: wrappedResolve, reject: wrappedReject });
       worker.postMessage({ type: 'preload', id, threads: this.threads });
     });
   }
