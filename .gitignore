@@ -2,19 +2,19 @@ node_modules
 dist
 dist-ssr
 *.local
+!.env.local
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
 *.log
-.env.production
 
 # 模型权重(.onnx)：默认不入库。
 #  - SAM 的 fp16 / quantized 版本体积小，例外放行，随仓库提交供部署自托管。
-#  - SAM fp32 原版、LaMa fp32(198MB) 体积大，不入库；LaMa 走 CDN(VITE_ASSET_CDN) 兜底。
+#  - SAM fp32 原版、LaMa fp32(208MB) 体积大，不入库；LaMa 走 VITE_LAMA_MODEL_URL（hf-mirror）。
 public/models/**/*.onnx
 !public/models/**/*_fp16.onnx
 !public/models/**/*_quantized.onnx
 
 # ORT 运行时 wasm(共 ~74MB)：由 scripts/copy-ort-assets.mjs 从 node_modules 拷贝，
-# 不入库；部署时走 CDN(VITE_ASSET_CDN) 兜底。
+# build 时自动重建并随站点部署（同源加载），不入库。
 public/ort/
